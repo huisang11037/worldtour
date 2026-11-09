@@ -1,0 +1,1242 @@
+<title>미스터 월드 테마투어</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: wireframe-style prototype. One 1080px column of thin-ruled boxes; booking = numbered form steps + sticky price summary. */
+/* 색상·글꼴 변수 (라이트 모드) */
+:root {
+  --bg: #ffffff;
+  --surface: #f3f4f6;
+  --fg: #15171c;
+  --muted: #5d6470;
+  --line: #cfd3da;
+  --strong: #15171c;
+  --accent: #2a55d0;
+  --accent-weak: #e9eefc;
+  --on-accent: #ffffff;
+  --ok: #17794a;
+  --ok-weak: #e6f4ec;
+  --warn: #965800;
+  --warn-weak: #fbf1e1;
+  --danger: #b42318;
+  --scrim: rgba(21, 23, 28, 0.5);
+  --shadow: rgba(21, 23, 28, 0.14);
+  --font-sans: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 2px;
+}
+/* 다크 모드 색상 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
+    --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
+    --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70;
+    --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
+  --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
+  --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70;
+  --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.6; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: var(--accent); }
+h1, h2, h3 { margin: 0; line-height: 1.3; font-weight: 700; text-wrap: balance; }
+h1 { font-size: clamp(22px, 3vw, 28px); }
+h2 { font-size: 20px; }
+h3 { font-size: 17px; }
+.h-sm { font-size: 16px; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: calc(1080px + 32px);
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Header */
+.site-head { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--strong); }
+.site-head .wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; min-height: 56px; flex-wrap: wrap; padding-block: 8px; }
+.logo { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; }
+.logo b { font-family: var(--font-mono); font-weight: 500; font-size: 16px; letter-spacing: 0.06em; }
+.proto { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px dashed var(--muted); color: var(--muted); padding: 1px 6px; }
+.nav { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; font-size: 14px; }
+.nav a:not(.btn) { color: var(--fg); text-decoration: none; }
+.nav a.is-active { text-decoration: underline; text-underline-offset: 6px; }
+.who { color: var(--muted); font-size: 13px; }
+@media (max-width: 520px) { .who { display: none; } }
+
+/* Shared */
+#app { padding-block: 28px 64px; }
+.view { display: flex; flex-direction: column; gap: 44px; }
+.view-tight { gap: 20px; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+.ok-t { color: var(--ok); }
+.warn-t { color: var(--warn); }
+.box { border: 1px solid var(--line); background: var(--bg); padding: 20px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border: 1px solid var(--line); background: var(--surface); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: inherit; font-size: 14px; font-weight: 500; line-height: 1.3;
+  padding: 8px 14px; border: 1px solid var(--strong); border-radius: var(--r);
+  background: var(--bg); color: var(--fg); cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: var(--surface); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-sm { padding: 4px 10px; font-size: 13px; }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+
+.badge { display: inline-block; font-size: 12px; font-weight: 500; line-height: 1.5; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
+.st-ok { color: var(--ok); background: var(--ok-weak); }
+.st-wait { color: var(--warn); background: var(--warn-weak); }
+.st-done { color: var(--muted); }
+.st-ongoing { color: var(--accent); background: var(--accent-weak); }
+.st-cancel { color: var(--danger); }
+.badge-accent { color: var(--accent); background: var(--accent-weak); }
+
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--strong); padding-bottom: 8px; margin-bottom: 16px; }
+.note { font-size: 13px; color: var(--muted); margin-top: 12px; max-width: 78ch; }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+.tbl th { font-weight: 500; font-size: 12px; color: var(--muted); text-align: left; background: var(--surface); white-space: nowrap; }
+.tbl th, .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl .r { text-align: right; }
+.tbl .sub { display: block; font-size: 12px; color: var(--muted); }
+.tbl .empty { text-align: center; color: var(--muted); padding: 28px 12px; }
+
+/* Home */
+.hero { display: grid; gap: 16px; padding: 32px; background: var(--surface); border-color: var(--strong); }
+.hero p { max-width: 62ch; }
+@media (max-width: 560px) { .hero { padding: 22px; } }
+.theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 720px) { .theme-grid { grid-template-columns: 1fr; } }
+.theme-card { display: flex; flex-direction: column; gap: 12px; }
+.ph {
+  height: 84px; border: 1px solid var(--line); display: grid; place-items: center;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 0.5px), var(--line) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(to top left, transparent calc(50% - 0.5px), var(--line) 50%, transparent calc(50% + 0.5px));
+}
+.ph span { background: var(--bg); padding: 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
+.svc { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 14px; }
+.card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px dashed var(--line); }
+.info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 820px) { .info-grid { grid-template-columns: 1fr; } }
+.info-grid .box { display: grid; gap: 6px; align-content: start; font-size: 14px; }
+
+/* Booking */
+.crumbs { font-size: 13px; color: var(--muted); }
+.crumbs a { color: var(--muted); }
+.book-head { display: grid; gap: 10px; background: var(--surface); border-color: var(--strong); }
+.book-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .book-grid { grid-template-columns: 1fr; } }
+.steps { display: flex; flex-direction: column; gap: 20px; min-width: 0; margin: 0; }
+.step { display: grid; gap: 20px; min-width: 0; }
+.step-title { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.step-no { font-family: var(--font-mono); font-size: 12px; font-weight: 500; width: 24px; height: 24px; display: inline-grid; place-items: center; border: 1px solid var(--strong); border-radius: 50%; flex: none; }
+.field { display: grid; gap: 8px; min-width: 0; }
+.field-head { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.field-head .t { font-weight: 600; font-size: 14px; }
+.opts { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.opts.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 600px) { .opts.cols-3 { grid-template-columns: 1fr; } }
+.opt { position: relative; display: block; cursor: pointer; min-width: 0; }
+.opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.opt-body { display: flex; flex-direction: column; gap: 2px; height: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); font-size: 14px; }
+.opt:hover .opt-body { border-color: var(--muted); }
+.opt input:checked + .opt-body { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-weak); }
+.opt input:focus-visible + .opt-body { outline: 2px solid var(--accent); outline-offset: 2px; }
+.opt.is-disabled, .opt.is-disabled input { cursor: not-allowed; }
+.opt.is-disabled .opt-body { background: var(--surface); border-style: dashed; color: var(--muted); }
+.opt-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg .opt-body { padding: 6px 14px; }
+.check .opt-body { flex-direction: row; align-items: center; gap: 10px; }
+.check .box-mark { width: 16px; height: 16px; border: 1px solid var(--muted); border-radius: 2px; flex: none; display: grid; place-items: center; font-size: 12px; line-height: 1; }
+.check input:checked + .opt-body .box-mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.check input:checked + .opt-body .box-mark::after { content: "✓"; }
+.stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--strong); border-radius: var(--r); }
+.stepper .btn { border: 0; border-radius: 0; width: 40px; height: 38px; padding: 0; font-size: 18px; }
+.stepper output { min-width: 64px; display: grid; place-items: center; border-inline: 1px solid var(--line); font-weight: 600; }
+.fixed-pax { padding: 8px 12px; border: 1px dashed var(--line); background: var(--surface); font-size: 14px; }
+
+.summary {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 76px);
+  max-height: calc(100vh - 96px); overflow: auto;
+  display: grid; gap: 14px; border-color: var(--strong);
+}
+@media (max-width: 900px) { .summary { position: static; max-height: none; } }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); white-space: nowrap; }
+.kv dd { margin: 0; text-align: right; }
+.kv-left { grid-template-columns: 96px minmax(0, 1fr); font-size: 14px; gap: 8px 14px; }
+.kv-left dd { text-align: left; }
+.depart { font-size: 13px; padding: 10px 12px; border: 1px dashed var(--line); background: var(--surface); display: grid; gap: 4px; justify-items: start; }
+.price { width: 100%; border-collapse: collapse; font-size: 13px; }
+.price td { padding: 6px 0; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.price td.r { text-align: right; white-space: nowrap; padding-left: 10px; }
+.price .f { display: block; color: var(--muted); font-size: 12px; }
+.sum-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; }
+.total { border-top: 1px solid var(--strong); padding-top: 10px; font-weight: 700; }
+.total strong { font-size: 20px; }
+
+/* Forms */
+.narrow { width: 100%; max-width: 460px; margin-inline: auto; }
+.narrow.wide { max-width: 680px; }
+.form-box { display: grid; gap: 18px; padding: 28px; }
+@media (max-width: 480px) { .form-box { padding: 20px; } }
+.stack { display: grid; gap: 14px; }
+.fld { display: grid; gap: 4px; font-size: 14px; }
+.fld > span { font-weight: 500; }
+.fld input {
+  font: inherit; font-size: 15px; width: 100%; padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--fg);
+}
+.fld input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.fld input[aria-invalid="true"] { border-color: var(--danger); }
+.err { color: var(--danger); font-size: 13px; }
+.hint { color: var(--muted); font-size: 12px; }
+.alert { padding: 10px 12px; border: 1px solid var(--warn); background: var(--warn-weak); font-size: 14px; }
+.demo-hint { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding: 12px; border: 1px dashed var(--line); background: var(--surface); }
+
+/* My page / done */
+.my-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 760px) { .my-grid { grid-template-columns: 1fr; } }
+.my-grid .box { display: grid; gap: 12px; align-content: start; }
+.tier-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 18px; font-weight: 700; }
+.meter { height: 6px; background: var(--surface); border: 1px solid var(--line); }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.done { display: grid; gap: 18px; }
+.sms-box { border: 1px solid var(--ok); background: var(--ok-weak); padding: 14px; display: grid; gap: 6px; font-size: 14px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Modal + toasts */
+#modal { position: fixed; inset: 0; z-index: 50; }
+.overlay {
+  position: absolute; inset: 0; background: var(--scrim); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.dialog { width: min(760px, 100%); max-height: 100%; overflow: auto; background: var(--bg); border: 1px solid var(--strong); padding: 22px; display: grid; gap: 14px; }
+.dialog.sm { width: min(460px, 100%); }
+.dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+#toasts {
+  position: fixed; z-index: 60; display: grid; gap: 8px;
+  right: calc(env(safe-area-inset-right, 0px) + 16px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: min(340px, calc(100vw - 32px));
+}
+.toast { background: var(--bg); border: 1px solid var(--strong); padding: 12px 14px; font-size: 14px; box-shadow: 0 8px 24px var(--shadow); display: grid; gap: 4px; }
+.toast.sms { border-color: var(--ok); }
+.toast-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.x { border: 0; background: none; color: var(--muted); font: inherit; font-size: 18px; line-height: 1; padding: 2px 4px; cursor: pointer; }
+
+/* Footer */
+.site-foot { border-top: 1px solid var(--line); }
+.site-foot .wrap { padding-block: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<!-- 상단 헤더 -->
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="#home"><b>MR. WORLD</b><span class="proto">Prototype</span></a>
+    <nav class="nav" id="nav" aria-label="주 메뉴"></nav>
+  </div>
+</header>
+<!-- 화면 내용이 그려지는 영역 -->
+<main class="wrap" id="app"></main>
+<!-- 하단 푸터 -->
+<footer class="site-foot">
+  <div class="wrap">
+    <span>미스터 월드 테마 여행 서비스 · 고객 인터페이스 프로토타입 (음성인식 · 직원 인터페이스 제외) · 데이터는 이 브라우저에만 저장됩니다.</span>
+    <button type="button" class="btn btn-sm" data-action="reset" id="reset-data">데모 데이터 초기화</button>
+  </div>
+</footer>
+<!-- 팝업 영역 -->
+<div id="modal" hidden></div>
+<!-- 알림 메시지 영역 -->
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Storage (localStorage + in-memory fallback) ---------------- */
+  // localStorage 키 이름 모음
+  const K = { users: 'mw_v1_users', bookings: 'mw_v1_bookings', extra: 'mw_v1_extra', session: 'mw_v1_session' };
+  // localStorage를 못 쓸 때 쓰는 메모리 저장소
+  const mem = {};
+  // 저장소 읽기/쓰기 (실패해도 페이지가 멈추지 않도록 try/catch)
+  const store = {
+    get(k, d) {
+      try { const v = localStorage.getItem(k); if (v !== null) return JSON.parse(v); } catch (e) { /* storage unavailable */ }
+      return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : d;
+    },
+    set(k, v) {
+      mem[k] = v;
+      try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
+    }
+  };
+
+  /* ---------------- Helpers ---------------- */
+  // DOM 요소 하나 찾기
+  const $ = (s, r = document) => r.querySelector(s);
+  // HTML 특수문자 이스케이프 (XSS 방지)
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  // Date → 'YYYY-MM-DD' 문자열
+  const toKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  // 'YYYY-MM-DD' 문자열 → Date
+  const fromKey = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  // 오늘 날짜 (시간 제외)
+  const TODAY = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); })();
+  const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+  // 숫자를 '1,000원' 형식으로
+  const won = n => Number(n).toLocaleString('ko-KR') + '원';
+  const fmtShort = s => { const d = fromKey(s); return `${pad(d.getMonth() + 1)}.${pad(d.getDate())} (${DOW[d.getDay()]})`; };
+  // 여행 기간 표시: 시작일 – 종료일 (N박 N+1일)
+  const fmtPeriod = (s, nights) => {
+    const a = fromKey(s), b = addDays(a, nights);
+    const end = b.getFullYear() !== a.getFullYear() ? `${b.getFullYear()}.${pad(b.getMonth() + 1)}.${pad(b.getDate())}` : `${pad(b.getMonth() + 1)}.${pad(b.getDate())}`;
+    return `${a.getFullYear()}.${pad(a.getMonth() + 1)}.${pad(a.getDate())} – ${end} (${nights}박 ${nights + 1}일)`;
+  };
+  // 앞으로의 토요일 출발일 8개 (오늘부터 7일 이후)
+  function upcomingDepartures() {
+    let d = addDays(TODAY, 7);
+    while (d.getDay() !== 6) d = addDays(d, 1);
+    return Array.from({ length: 8 }, (_, i) => toKey(addDays(d, i * 7)));
+  }
+  // N일 전 기준 가장 가까운 지난 토요일 (데모 과거 여행용)
+  function pastSaturday(daysAgo) {
+    let d = addDays(TODAY, -daysAgo);
+    while (d.getDay() !== 6) d = addDays(d, -1);
+    return toKey(d);
+  }
+
+  /* ---------------- Domain data (명세서 기반, 가격은 데모용) ---------------- */
+  const MIN_PAX = 3;           // 출발 확정 최소 인원
+  const MAX_PAX = 10;          // 10인 승합 고급차량 기준
+  const NIGHTS = [2, 3, 4, 5];
+
+  // 4개 테마 패키지: 기본가, 최소 등급, 고정 인원, 기본 차량, 서비스, 여행지
+  const THEMES = {
+    honeymoon: {
+      id: 'honeymoon', name: '허니문 낭만 투어', en: 'Honeymoon Romance Tour', who: '배우자와 함께',
+      base: 500000, minStyle: 'grand', fixedPax: 2, vehicle: 'sedan',
+      services: ['로맨틱 스페셜 룸 데코레이션', '커플 기념티 제공', '2인 전용 고급차량 서비스'],
+      dests: [
+        { id: 'jeju', name: '제주', region: '국내', extra: 100000 },
+        { id: 'maldives', name: '몰디브', region: '해외', extra: 1500000 },
+        { id: 'hawaii', name: '하와이', region: '해외', extra: 1200000 }
+      ]
+    },
+    parents: {
+      id: 'parents', name: '효도 힐링 투어', en: 'Parents Healing Tour', who: '부모님과 함께',
+      base: 400000, minStyle: 'grand', fixedPax: 0, vehicle: 'van',
+      services: ['고품격 안마 · 지압 서비스', '건강 인삼 기념품 제공', '10인 승합 고급차량 서비스'],
+      dests: [
+        { id: 'jeju', name: '제주', region: '국내', extra: 100000 },
+        { id: 'gyeongju', name: '경주', region: '국내', extra: 0 },
+        { id: 'oita', name: '일본 오이타', region: '해외', extra: 450000 }
+      ]
+    },
+    golf: {
+      id: 'golf', name: '골프 챌린지 투어', en: 'Golf Challenge Tour', who: '친구 · 동료와 함께',
+      base: 450000, minStyle: 'classic', fixedPax: 0, vehicle: 'van',
+      services: ['유명 골프 리조트 테마 연출', '골프 액세서리(골프공) 제공', '10인 승합 고급차량 서비스'],
+      dests: [
+        { id: 'jeju', name: '제주', region: '국내', extra: 100000 },
+        { id: 'chiangmai', name: '태국 치앙마이', region: '해외', extra: 550000 },
+        { id: 'danang', name: '베트남 다낭', region: '해외', extra: 450000 }
+      ]
+    },
+    trekking: {
+      id: 'trekking', name: '아웃도어 트레킹 투어', en: 'Outdoor Trekking Tour', who: '친구와 함께',
+      base: 300000, minStyle: 'classic', fixedPax: 0, vehicle: 'van',
+      services: ['트레킹 · 산악 테마 어드벤처 연출', '아웃도어 기념품(스카프) 제공', '10인 승합 고급차량 서비스'],
+      dests: [
+        { id: 'seorak', name: '설악산', region: '국내', extra: 0 },
+        { id: 'jiri', name: '지리산', region: '국내', extra: 0 },
+        { id: 'annapurna', name: '네팔 안나푸르나', region: '해외', extra: 1100000 }
+      ]
+    }
+  };
+  const STYLE_ORDER = ['classic', 'grand', 'premium'];
+  // 투어 등급별 기본 호텔·식사
+  const STYLES = {
+    classic: { name: '클래식', en: 'Classic', hotel: 3, meal: 'lunchbox' },
+    grand: { name: '그랜드', en: 'Grand', hotel: 4, meal: 'local' },
+    premium: { name: '프리미엄', en: 'Premium', hotel: 5, meal: 'fine' }
+  };
+  // 호텔 등급별 1인 1박 가격
+  const HOTELS = {
+    3: { name: '3성급 호텔', short: '3성', price: 60000 },
+    4: { name: '4성급 호텔', short: '4성', price: 110000 },
+    5: { name: '5성급 호텔', short: '5성', price: 200000 }
+  };
+  // 식사 종류별 1인 1일 가격 (lv는 등급 제한 비교용)
+  const MEALS = {
+    lunchbox: { name: '도시락', short: '도시락', price: 15000, lv: 3 },
+    local: { name: '현지식 레스토랑', short: '현지식', price: 40000, lv: 4 },
+    fine: { name: '고급 레스토랑 스테이크 + 샴페인', short: '스테이크+샴페인', price: 90000, lv: 5 }
+  };
+  const MEAL_ORDER = ['lunchbox', 'local', 'fine'];
+  // 차량 종류별 정원과 1일 가격
+  const VEHICLES = {
+    sedan: { name: '2인 전용 고급차량', short: '2인 고급차량', cap: 2, price: 150000 },
+    van: { name: '10인 승합 고급차량', short: '10인 승합', cap: 10, price: 250000 },
+    none: { name: '차량 미이용 (개별 이동)', short: '차량 미이용', cap: 10, price: 0 }
+  };
+  const VEHICLE_ORDER = ['sedan', 'van', 'none'];
+  // 식사 추가 메뉴 (1인 1일 가격)
+  const ADDONS = {
+    champagne: { name: '샴페인', price: 30000 },
+    coffee: { name: '커피', price: 5000 }
+  };
+
+  // 예약/초안의 여행지 객체 찾기
+  const destOf = b => THEMES[b.theme].dests.find(x => x.id === b.dest) || THEMES[b.theme].dests[0];
+  // 실제 과금되는 추가 메뉴 (고급 레스토랑이면 샴페인 제외)
+  const activeAddons = b => Object.keys(ADDONS).filter(k => b.addons.includes(k) && !(k === 'champagne' && b.meal === 'fine'));
+  const addonText = b => { const a = activeAddons(b).map(k => ADDONS[k].name); return a.length ? a.join(', ') : '없음'; };
+  const configText = b => `${HOTELS[b.hotel].short} · ${MEALS[b.meal].short} · ${VEHICLES[b.vehicle].short}`;
+  // 등급 기본값에서 옵션을 바꿨는지 여부
+  const isCustomized = b => b.hotel !== STYLES[b.style].hotel || b.meal !== STYLES[b.style].meal || b.vehicle !== THEMES[b.theme].vehicle;
+
+  /* ---------------- Pricing ---------------- */
+  // 가격 계산: 항목별 금액, 소계, 할인, 총액 반환
+  function calc(b, rate) {
+    const t = THEMES[b.theme], dest = destOf(b), days = b.nights + 1, p = b.pax;
+    const H = HOTELS[b.hotel], M = MEALS[b.meal], V = VEHICLES[b.vehicle];
+    const lines = [];
+    const add = (name, amount, formula) => { if (amount > 0) lines.push({ name, amount, formula }); };
+    add('테마 패키지', t.base * p, `${won(t.base)} × ${p}명`);
+    add(`여행지 추가요금 (${dest.name})`, dest.extra * p, `${won(dest.extra)} × ${p}명`);
+    add(`호텔 · ${H.name}`, H.price * b.nights * p, `${won(H.price)} × ${b.nights}박 × ${p}명`);
+    add(`식사 · ${M.name}`, M.price * days * p, `${won(M.price)} × ${days}일 × ${p}명`);
+    add(`교통 · ${V.name}`, V.price * days, `${won(V.price)} × ${days}일`);
+    activeAddons(b).forEach(k => {
+      const A = ADDONS[k];
+      add(`추가 · ${A.name}`, A.price * days * p, `${won(A.price)} × ${days}일 × ${p}명`);
+    });
+    const subtotal = lines.reduce((s, l) => s + l.amount, 0);
+    const discount = Math.round((subtotal * rate) / 100) * 100;
+    return { lines, subtotal, discount, total: subtotal - discount };
+  }
+
+  /* ---------------- State ---------------- */
+  // 저장된 회원·예약 데이터 불러오기 (없으면 데모 데이터 생성)
+  let users = store.get(K.users, null);
+  let bookings = store.get(K.bookings, null);
+  let extra = store.get(K.extra, {}) || {};
+  if (!Array.isArray(users) || !Array.isArray(bookings)) seed();
+  let session = store.get(K.session, null);
+  // 화면 상태: 예약 초안, 로그인 후 돌아갈 페이지, 알림 문구, 마지막 예약번호
+  const state = { draft: null, returnTo: null, notice: '', lastBookingId: null };
+
+  // 회원·예약·데모 인원 저장
+  function save() {
+    store.set(K.users, users);
+    store.set(K.bookings, bookings);
+    store.set(K.extra, extra);
+  }
+  // 로그인 세션 저장
+  function setSession(id) { session = id; store.set(K.session, id); }
+  // 현재 로그인한 회원 (없으면 null)
+  const me = () => users.find(u => u.id === session) || null;
+
+  // 데모 계정과 과거 여행 3건 생성
+  function seed() {
+    users = [{
+      id: 'demo', pw: '1234', name: '김월드', address: '서울특별시 중구 월드로 12',
+      phone: '010-1234-5678', createdAt: toKey(addDays(TODAY, -420))
+    }];
+    bookings = [];
+    extra = {};
+    const trips = [
+      { theme: 'trekking', dest: 'seorak', date: pastSaturday(390), nights: 2, pax: 5, style: 'classic', hotel: 3, meal: 'fine', vehicle: 'van', addons: ['coffee'] },
+      { theme: 'parents', dest: 'gyeongju', date: pastSaturday(190), nights: 2, pax: 3, style: 'premium', hotel: 5, meal: 'fine', vehicle: 'van', addons: ['coffee'] },
+      { theme: 'golf', dest: 'jeju', date: pastSaturday(60), nights: 3, pax: 4, style: 'grand', hotel: 4, meal: 'local', vehicle: 'van', addons: ['champagne'] }
+    ];
+    trips.forEach((t, i) => {
+      const rate = i === 0 ? 0 : 0.05;
+      const p = calc(t, rate);
+      bookings.push(Object.assign({}, t, {
+        id: `MW-${t.date.replace(/-/g, '').slice(2)}-0${i + 1}`, userId: 'demo',
+        subtotal: p.subtotal, discountRate: rate, discount: p.discount, total: p.total,
+        createdAt: toKey(addDays(fromKey(t.date), -21)), cancelled: false
+      }));
+    });
+    save();
+    store.set(K.session, null);
+  }
+
+  /* ---------------- Departure rule (신청 인원 3명 이상 → 출발 확정) ---------------- */
+  const depKey = (theme, dest, date) => `${theme}|${dest}|${date}`;
+  // 출발일별 다른 고객 신청 인원 (데모용, 날짜마다 고정값)
+  function seedCount(theme, dest, date) {
+    let h = 0;
+    for (const ch of theme + dest + date) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const arr = THEMES[theme].fixedPax ? [0, 2, 0, 2, 4, 0] : [0, 1, 2, 2, 3, 0, 1, 4];
+    return arr[h % arr.length];
+  }
+  // 출발일별 총 신청 인원 = 데모 인원 + 데모 추가 + 실제 예약
+  function departureCount(theme, dest, date) {
+    const own = bookings
+      .filter(b => !b.cancelled && b.theme === theme && b.dest === dest && b.date === date)
+      .reduce((s, b) => s + b.pax, 0);
+    return seedCount(theme, dest, date) + (extra[depKey(theme, dest, date)] || 0) + own;
+  }
+  // 예약 상태 계산: 취소, 여행 완료, 여행 중, 출발 확정, 모집 중
+  function statusOf(b) {
+    if (b.cancelled) return { key: 'cancel', label: '예약 취소' };
+    const start = fromKey(b.date), end = addDays(start, b.nights);
+    if (end < TODAY) return { key: 'done', label: '여행 완료' };
+    if (start <= TODAY) return { key: 'ongoing', label: '여행 중' };
+    const c = departureCount(b.theme, b.dest, b.date);
+    return c >= MIN_PAX ? { key: 'ok', label: '출발 확정' } : { key: 'wait', label: `모집 중 ${c}/${MIN_PAX}명` };
+  }
+  const badge = s => `<span class="badge st-${s.key}">${s.label}</span>`;
+  // 출발 확정 문자 문구
+  const smsText = (u, b) => {
+    const d = fromKey(b.date);
+    return `[미스터월드] ${u.name}님, ${THEMES[b.theme].name}(${destOf(b).name}, ${d.getMonth() + 1}/${d.getDate()} 출발) 일정의 신청 인원이 ${MIN_PAX}명 이상이 되어 출발이 확정되었습니다. 예약번호 ${b.id}`;
+  };
+
+  /* ---------------- Regular-customer discount (단골 할인) ---------------- */
+  // 완료된 여행 수로 회원 등급과 할인율 계산
+  function tierOf(userId) {
+    const n = bookings.filter(b => b.userId === userId && statusOf(b).key === 'done').length;
+    if (n >= 3) return { name: '단골 고객', rate: 0.10, n, next: null };
+    if (n >= 1) return { name: '우수 고객', rate: 0.05, n, next: 3 - n };
+    return { name: '일반 고객', rate: 0, n, next: 1 };
+  }
+
+  /* ---------------- Booking draft ---------------- */
+  // 테마 선택 시 기본 예약 초안 (그랜드, 3박, 2명)
+  function newDraft(themeId) {
+    const t = THEMES[themeId];
+    return {
+      theme: themeId, dest: t.dests[0].id, date: upcomingDepartures()[0], nights: 3,
+      pax: t.fixedPax || 2, style: 'grand', hotel: 4, meal: 'local', vehicle: t.vehicle, addons: []
+    };
+  }
+  // 초안을 규칙에 맞게 보정 (등급 제한, 인원, 차량 정원)
+  function normalize(d) {
+    const t = THEMES[d.theme];
+    if (!t.dests.some(x => x.id === d.dest)) d.dest = t.dests[0].id;
+    if (!upcomingDepartures().includes(d.date)) d.date = upcomingDepartures()[0];
+    if (!NIGHTS.includes(d.nights)) d.nights = 3;
+    d.pax = t.fixedPax || Math.min(MAX_PAX, Math.max(1, d.pax | 0));
+    if (t.minStyle === 'grand') {
+      if (d.style === 'classic') { d.style = 'grand'; d.hotel = 4; d.meal = 'local'; }
+      if (d.hotel < 4) d.hotel = 4;
+      if (MEALS[d.meal].lv < 4) d.meal = 'local';
+    }
+    if (VEHICLES[d.vehicle].cap < d.pax) d.vehicle = 'van';
+    return d;
+  }
+
+  /* ---------------- Routing ---------------- */
+  const app = $('#app'), nav = $('#nav'), modal = $('#modal'), toasts = $('#toasts');
+  // 주소의 #해시로 현재 화면 결정
+  const currentRoute = () => decodeURIComponent(location.hash.slice(1)) || 'home';
+  // 화면 이동
+  function go(name) {
+    if (currentRoute() === name) { render(); window.scrollTo(0, 0); }
+    else location.hash = name;
+  }
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+
+  // 현재 해시에 맞는 화면 그리기
+  function render() {
+    const r = currentRoute();
+    let html;
+    if (r === 'login') html = viewLogin();
+    else if (r === 'signup') html = viewSignup();
+    else if (r === 'mypage') {
+      if (!me()) { state.returnTo = 'mypage'; state.notice = '마이페이지는 로그인 후 이용할 수 있습니다.'; go('login'); return; }
+      html = viewMypage();
+    } else if (r.startsWith('book-') && THEMES[r.slice(5)]) {
+      const id = r.slice(5);
+      if (!state.draft || state.draft.theme !== id) state.draft = newDraft(id);
+      normalize(state.draft);
+      html = viewBook();
+    } else if (r === 'done' && state.lastBookingId) html = viewDone();
+    else html = viewHome();
+    renderNav(r);
+    app.innerHTML = html;
+  }
+  // 예약 화면만 다시 그리기 (스크롤·포커스 유지)
+  function rerenderBook() {
+    const active = document.activeElement && document.activeElement.id;
+    const y = window.scrollY;
+    app.innerHTML = viewBook();
+    window.scrollTo(0, y);
+    if (active) { const el = document.getElementById(active); if (el) el.focus({ preventScroll: true }); }
+  }
+
+  // 상단 메뉴 (로그인 여부에 따라 다름)
+  function renderNav(r) {
+    const u = me();
+    nav.innerHTML = `
+      <a href="#home" class="${r === 'home' ? 'is-active' : ''}">홈</a>
+      ${u ? `
+        <a href="#mypage" class="${r === 'mypage' ? 'is-active' : ''}">마이페이지</a>
+        <span class="who">${esc(u.name)}님 · ${tierOf(u.id).name}</span>
+        <button type="button" class="btn btn-sm" data-action="logout" id="logout">로그아웃</button>`
+      : `
+        <a href="#login" class="${r === 'login' ? 'is-active' : ''}">로그인</a>
+        <a href="#signup" class="btn btn-sm">회원가입</a>`}`;
+  }
+
+  /* ---------------- Views ---------------- */
+  // 메인 화면
+  function viewHome() {
+    const u = me();
+    const themeCard = t => `
+      <article class="box theme-card">
+        <div class="ph"><span class="label">Theme Visual</span></div>
+        <div><div class="label">${t.en}</div><h3>${t.name}</h3></div>
+        <div class="chips">
+          <span class="chip">${t.who}</span>
+          <span class="chip">${t.fixedPax ? '2인 전용' : `1–${MAX_PAX}인`}</span>
+          <span class="chip">${t.minStyle === 'grand' ? '그랜드 이상' : '전 등급 선택'}</span>
+        </div>
+        <ul class="svc">${t.services.map(s => `<li>${s}</li>`).join('')}</ul>
+        <p class="small muted">여행지 · ${t.dests.map(d => `${d.name}(${d.region})`).join(', ')}</p>
+        <div class="card-foot">
+          <div><span class="small muted">테마 패키지 1인</span> <strong class="num">${won(t.base)}~</strong></div>
+          <a class="btn btn-primary" href="#book-${t.id}">상품 선택</a>
+        </div>
+      </article>`;
+    const themesFor = s => s === 'classic'
+      ? Object.values(THEMES).filter(t => t.minStyle === 'classic').map(t => t.name.split(' ')[0]).join(', ')
+      : '전체 테마';
+    return `<div class="view">
+      <section class="box hero">
+        <div class="label">Mister World · Theme Tour</div>
+        <h1>특별한 날, 가장 멋있는 장소에서 사랑하는 사람에게<br>잊지 못할 여행의 감동을 선물하세요.</h1>
+        <p class="muted">배우자, 부모님, 친구와 함께하는 테마별 맞춤형 국내외 여행입니다. 상품을 선택하면 머무는 공간의 테마 연출과 식사, 투어 차량까지 함께 준비합니다.</p>
+        <div class="row">
+          <button type="button" class="btn btn-primary" data-action="scroll" data-target="themes">테마 상품 보기</button>
+          ${u ? `<a class="btn" href="#mypage">내 예약 확인</a>` : `<button type="button" class="btn" data-action="demo-login" id="demo-login">데모 계정으로 로그인</button>`}
+        </div>
+      </section>
+
+      <section id="themes">
+        <div class="sec-head"><h2>테마 패키지</h2><span class="label">A. Theme Packages</span></div>
+        <div class="theme-grid">${Object.values(THEMES).map(themeCard).join('')}</div>
+      </section>
+
+      <section>
+        <div class="sec-head"><h2>투어 등급 스타일</h2><span class="label">B. Tour Level Style</span></div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>등급</th><th>호텔</th><th>식사</th><th>선택 가능 테마</th></tr></thead>
+          <tbody>${STYLE_ORDER.map(k => { const s = STYLES[k]; return `<tr>
+            <td><b>${s.name}</b><span class="sub">${s.en}</span></td>
+            <td>${HOTELS[s.hotel].name}<span class="sub num">1인 1박 ${won(HOTELS[s.hotel].price)}</span></td>
+            <td>${MEALS[s.meal].name}<span class="sub num">1인 1일 ${won(MEALS[s.meal].price)}</span></td>
+            <td>${themesFor(k)}</td></tr>`; }).join('')}
+          </tbody>
+        </table></div>
+        <p class="note">허니문 낭만 투어와 효도 힐링 투어는 그랜드 스타일 이상부터 선택할 수 있습니다. 상품을 고른 뒤에는 호텔 등급, 교통, 식사를 각각 바꿀 수 있습니다. 예를 들어 트레킹 투어를 클래식 스타일로 고르고 식사만 고급 레스토랑 스테이크와 샴페인으로 바꿀 수 있습니다. 식사에는 샴페인(1인 1일 ${won(ADDONS.champagne.price)})과 커피(${won(ADDONS.coffee.price)})를 추가할 수 있습니다.</p>
+      </section>
+
+      <section>
+        <div class="sec-head"><h2>예약 안내</h2></div>
+        <div class="info-grid">
+          <div class="box"><div class="label">Departure</div><b>출발 확정과 문자 알림</b><p class="muted">출발일별 신청 인원이 ${MIN_PAX}명 이상이면 출발이 확정되고, 가입할 때 등록한 연락처로 문자를 보내드립니다.</p></div>
+          <div class="box"><div class="label">Discount</div><b>단골 고객 할인</b><p class="muted">완료된 여행이 1–2회면 5%, 3회 이상이면 10%가 예약 금액에서 자동으로 할인됩니다.</p></div>
+          <div class="box"><div class="label">History</div><b>이전 여행 목록</b><p class="muted">로그인하면 지난 여행의 상품, 기간, 투어 등급, 가격을 최근 순으로 보여드립니다.</p></div>
+        </div>
+      </section>
+    </div>`;
+  }
+
+  // 로그인 화면
+  function viewLogin() {
+    const notice = state.notice; state.notice = '';
+    return `<div class="view"><div class="narrow">
+      <section class="box form-box">
+        <div><div class="label">Login</div><h1>로그인</h1></div>
+        ${notice ? `<div class="alert">${esc(notice)}</div>` : ''}
+        <form id="loginForm" class="stack" novalidate>
+          <label class="fld"><span>아이디</span><input type="text" id="login-id" name="uid" autocomplete="username"></label>
+          <label class="fld"><span>비밀번호</span><input type="password" id="login-pw" name="upw" autocomplete="current-password"></label>
+          <div class="err" id="login-err" hidden></div>
+          <button type="submit" class="btn btn-primary btn-block" id="login-submit">로그인</button>
+        </form>
+        <div class="demo-hint">
+          <span>데모 계정 <code>demo</code> / <code>1234</code> · 완료된 여행 3건(단골 고객)</span>
+          <button type="button" class="btn btn-sm" data-action="fill-demo" id="fill-demo">입력하기</button>
+        </div>
+        <p class="small muted">계정이 없으신가요? <a href="#signup">회원가입</a></p>
+      </section>
+    </div></div>`;
+  }
+
+  // 회원가입 화면
+  function viewSignup() {
+    const f = (id, name, label, type, ac, hint) => `
+      <label class="fld"><span>${label}</span>
+        <input type="${type}" id="${id}" name="${name}" autocomplete="${ac}">
+        ${hint ? `<span class="hint">${hint}</span>` : ''}
+        <span class="err" data-err="${name}" hidden></span>
+      </label>`;
+    return `<div class="view"><div class="narrow">
+      <section class="box form-box">
+        <div><div class="label">Sign up</div><h1>회원가입</h1></div>
+        <p class="small muted">성명, 주소, 연락처는 출발 확정 문자 발송과 단골 고객 할인에 사용됩니다.</p>
+        <form id="signupForm" class="stack" novalidate>
+          ${f('su-id', 'uid', '아이디', 'text', 'username', '영문 · 숫자 3–16자')}
+          ${f('su-pw', 'upw', '비밀번호', 'password', 'new-password', '4자 이상')}
+          ${f('su-pw2', 'upw2', '비밀번호 확인', 'password', 'new-password', '')}
+          ${f('su-name', 'uname', '성명', 'text', 'name', '')}
+          ${f('su-addr', 'uaddr', '주소', 'text', 'street-address', '')}
+          ${f('su-phone', 'uphone', '연락처', 'tel', 'tel', '예) 010-1234-5678')}
+          <button type="submit" class="btn btn-primary btn-block" id="signup-submit">가입하기</button>
+        </form>
+        <p class="small muted">이미 계정이 있으신가요? <a href="#login">로그인</a></p>
+      </section>
+    </div></div>`;
+  }
+
+  // 라디오/체크박스 선택 카드 하나 만들기
+  const opt = (name, value, checked, inner, o = {}) => `
+    <label class="opt${o.disabled ? ' is-disabled' : ''}${o.type === 'checkbox' ? ' check' : ''}">
+      <input type="${o.type || 'radio'}" name="${name}" value="${value}" id="${name}-${value}"${checked ? ' checked' : ''}${o.disabled ? ' disabled' : ''}>
+      <span class="opt-body">${inner}</span>
+    </label>`;
+
+  // 여행 상품 선택(예약) 화면
+  function viewBook() {
+    const d = state.draft, t = THEMES[d.theme], dest = destOf(d), st = STYLES[d.style];
+    const u = me(), tier = u ? tierOf(u.id) : null, rate = tier ? tier.rate : 0, p = calc(d, rate);
+    const restricted = t.minStyle === 'grand';
+    const cur = departureCount(d.theme, d.dest, d.date), after = cur + d.pax;
+    const changed = on => on ? '<span class="badge badge-accent">변경됨</span>' : '';
+
+    const destOpts = t.dests.map(x => opt('dest', x.id, d.dest === x.id,
+      `<span class="opt-top"><b>${x.name}</b><span class="tag">${x.region}</span></span>
+       <span class="small muted num">${x.extra ? `1인 +${won(x.extra)}` : '추가요금 없음'}</span>`)).join('');
+    const nightOpts = NIGHTS.map(n => opt('nights', n, d.nights === n, `${n}박 ${n + 1}일`)).join('');
+    const dateOpts = upcomingDepartures().map(ds => {
+      const c = departureCount(d.theme, d.dest, ds), ok = c >= MIN_PAX;
+      return opt('date', ds, d.date === ds,
+        `<b class="num">${fmtShort(ds)}</b><span class="small ${ok ? 'ok-t' : 'muted'}">${ok ? `출발 확정 · ${c}명` : `신청 ${c}/${MIN_PAX}명`}</span>`);
+    }).join('');
+    const paxField = t.fixedPax
+      ? `<div class="fixed-pax"><b>2명</b> <span class="small muted">커플 2인 전용 상품</span></div>`
+      : `<div class="row">
+          <div class="stepper">
+            <button type="button" class="btn" id="pax-minus" data-action="pax" data-d="-1" aria-label="인원 줄이기"${d.pax <= 1 ? ' disabled' : ''}>−</button>
+            <output id="pax-out" class="num" aria-live="polite">${d.pax}명</output>
+            <button type="button" class="btn" id="pax-plus" data-action="pax" data-d="1" aria-label="인원 늘리기"${d.pax >= MAX_PAX ? ' disabled' : ''}>+</button>
+          </div>
+          <span class="small muted">최대 ${MAX_PAX}명 (10인 승합 고급차량 기준)</span>
+        </div>`;
+
+    const styleOpts = STYLE_ORDER.map(k => {
+      const s = STYLES[k], dis = restricted && k === 'classic';
+      return opt('style', k, d.style === k,
+        `<span class="opt-top"><b>${s.name}</b><span class="label">${s.en}</span></span>
+         <span class="small">${HOTELS[s.hotel].name}</span>
+         <span class="small">${MEALS[s.meal].name}</span>
+         ${dis ? '<span class="small warn-t">그랜드 이상만 선택 가능</span>' : ''}`, { disabled: dis });
+    }).join('');
+
+    const hotelOpts = [3, 4, 5].map(h => {
+      const H = HOTELS[h], dis = restricted && h < 4;
+      return opt('hotel', h, d.hotel === h,
+        `<span class="opt-top"><b>${H.name}</b>${st.hotel === h ? '<span class="tag">기본</span>' : ''}</span>
+         <span class="small muted num">1인 1박 ${won(H.price)}</span>
+         ${dis ? '<span class="small warn-t">이 상품은 4성급 이상</span>' : ''}`, { disabled: dis });
+    }).join('');
+    const mealOpts = MEAL_ORDER.map(m => {
+      const M = MEALS[m], dis = restricted && M.lv < 4;
+      return opt('meal', m, d.meal === m,
+        `<span class="opt-top"><b>${M.name}</b>${st.meal === m ? '<span class="tag">기본</span>' : ''}</span>
+         <span class="small muted num">1인 1일 ${won(M.price)}</span>
+         ${dis ? '<span class="small warn-t">이 상품은 현지식 이상</span>' : ''}`, { disabled: dis });
+    }).join('');
+    const vehOpts = VEHICLE_ORDER.map(v => {
+      const V = VEHICLES[v], dis = V.cap < d.pax;
+      return opt('vehicle', v, d.vehicle === v,
+        `<span class="opt-top"><b>${V.name}</b>${t.vehicle === v ? '<span class="tag">테마 기본</span>' : ''}</span>
+         <span class="small muted num">${V.price ? `1일 ${won(V.price)}` : '0원'}</span>
+         ${dis ? `<span class="small warn-t">${V.cap}인까지 탑승</span>` : ''}`, { disabled: dis });
+    }).join('');
+    const champIncluded = d.meal === 'fine';
+    const addonOpts = Object.keys(ADDONS).map(k => {
+      const A = ADDONS[k], incl = k === 'champagne' && champIncluded;
+      return opt('addon', k, incl || d.addons.includes(k),
+        `<span class="box-mark" aria-hidden="true"></span>
+         <span><b>${A.name}</b> <span class="small muted num">${incl ? '고급 레스토랑 식사에 포함' : `1인 1일 ${won(A.price)}`}</span></span>`,
+        { type: 'checkbox', disabled: incl });
+    }).join('');
+
+    let departMsg;
+    if (cur >= MIN_PAX) departMsg = `<span class="badge st-ok">출발 확정 일정</span><span>이미 ${cur}명이 신청해 출발이 확정된 일정입니다.</span>`;
+    else if (after >= MIN_PAX) departMsg = `<span class="badge st-ok">신청 시 출발 확정</span><span>현재 ${cur}명 + 내 신청 ${d.pax}명 = ${after}명. 신청하면 바로 확정 문자를 보내드립니다.</span>`;
+    else departMsg = `<span class="badge st-wait">모집 중</span><span>현재 ${cur}명 + 내 신청 ${d.pax}명 = ${after}명. ${MIN_PAX}명이 모이면 문자로 알려드립니다.</span>`;
+
+    const summary = `
+      <aside class="box summary" aria-label="예약 요약">
+        <div><div class="label">Summary</div><h2 class="h-sm">예약 요약</h2></div>
+        <dl class="kv">
+          <dt>상품</dt><dd>${t.name}</dd>
+          <dt>여행지</dt><dd>${dest.name} (${dest.region})</dd>
+          <dt>기간</dt><dd class="num">${fmtPeriod(d.date, d.nights)}</dd>
+          <dt>인원</dt><dd>${d.pax}명</dd>
+          <dt>투어 등급</dt><dd>${st.name}${isCustomized(d) ? ' <span class="badge badge-accent">옵션 변경</span>' : ''}</dd>
+          <dt>구성</dt><dd>${configText(d)}</dd>
+          <dt>추가 메뉴</dt><dd>${addonText(d)}</dd>
+        </dl>
+        <div class="depart">${departMsg}</div>
+        <table class="price"><tbody>
+          ${p.lines.map(l => `<tr><td>${l.name}<span class="f num">${l.formula}</span></td><td class="r num">${won(l.amount)}</td></tr>`).join('')}
+        </tbody></table>
+        <div class="sum-row"><span>소계</span><span class="num">${won(p.subtotal)}</span></div>
+        <div class="sum-row">${u
+          ? `<span>${tier.name} 할인 (${Math.round(rate * 100)}%)</span><span class="num">−${won(p.discount)}</span>`
+          : `<span class="muted small">로그인하면 단골 할인이 적용됩니다</span><span class="num">−0원</span>`}</div>
+        <div class="sum-row total"><span>결제 예정 금액</span><strong class="num">${won(p.total)}</strong></div>
+        <button type="button" class="btn btn-primary btn-block" data-action="submit-booking" id="submit-booking">${u ? '예약 신청' : '로그인 후 예약 신청'}</button>
+      </aside>`;
+
+    return `<div class="view view-tight">
+      <div class="crumbs"><a href="#home">홈</a> / 여행 상품 선택 / ${t.name}</div>
+      <section class="box book-head">
+        <div class="label">${t.en}</div>
+        <h1>${t.name}</h1>
+        <div class="chips">${t.services.map(s => `<span class="chip">${s}</span>`).join('')}</div>
+        ${restricted ? '<p class="small muted">이 상품은 그랜드 스타일 이상부터 선택할 수 있습니다.</p>' : ''}
+      </section>
+      <div class="book-grid">
+        <form id="bookForm" class="steps" novalidate>
+          <section class="box step" aria-labelledby="s1">
+            <h2 class="step-title" id="s1"><span class="step-no">1</span>여행지 · 일정 · 인원</h2>
+            <div class="field"><div class="field-head"><span class="t">여행지</span></div>
+              <div class="opts cols-3" role="radiogroup" aria-label="여행지">${destOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">기간</span></div>
+              <div class="seg" role="radiogroup" aria-label="기간">${nightOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">출발일</span><span class="small muted">매주 토요일 출발 · 신청 인원 ${MIN_PAX}명 이상이면 출발 확정</span></div>
+              <div class="opts" role="radiogroup" aria-label="출발일">${dateOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">인원</span></div>${paxField}</div>
+          </section>
+
+          <section class="box step" aria-labelledby="s2">
+            <h2 class="step-title" id="s2"><span class="step-no">2</span>투어 등급 스타일</h2>
+            <div class="opts cols-3" role="radiogroup" aria-label="투어 등급">${styleOpts}</div>
+          </section>
+
+          <section class="box step" aria-labelledby="s3">
+            <h2 class="step-title" id="s3"><span class="step-no">3</span>세부 옵션 변경</h2>
+            <p class="small muted">${st.name} 스타일의 기본 구성에서 원하는 항목만 바꿀 수 있습니다. 등급을 다시 고르면 호텔과 식사는 그 등급의 기본값으로 돌아갑니다.</p>
+            <div class="field"><div class="field-head"><span class="t">호텔 등급</span>${changed(d.hotel !== st.hotel)}</div>
+              <div class="opts cols-3" role="radiogroup" aria-label="호텔 등급">${hotelOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">식사</span>${changed(d.meal !== st.meal)}</div>
+              <div class="opts cols-3" role="radiogroup" aria-label="식사">${mealOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">교통</span>${changed(d.vehicle !== t.vehicle)}</div>
+              <div class="opts cols-3" role="radiogroup" aria-label="교통">${vehOpts}</div></div>
+            <div class="field"><div class="field-head"><span class="t">식사 추가 메뉴</span></div>
+              <div class="opts">${addonOpts}</div></div>
+          </section>
+        </form>
+        ${summary}
+      </div>
+    </div>`;
+  }
+
+  // 예약 완료 화면
+  function viewDone() {
+    const b = bookings.find(x => x.id === state.lastBookingId);
+    if (!b) return viewHome();
+    const u = me(), t = THEMES[b.theme], dest = destOf(b), s = statusOf(b);
+    const c = departureCount(b.theme, b.dest, b.date);
+    const phone = u ? u.phone : '';
+    const notice = c >= MIN_PAX
+      ? `<div class="sms-box"><div class="label">SMS · 발송 시뮬레이션</div><span class="small muted">수신 ${esc(phone)}</span><p>${esc(smsText(u, b))}</p></div>`
+      : `<div class="alert">현재 이 일정의 신청 인원은 ${c}/${MIN_PAX}명입니다. ${MIN_PAX}명이 모이면 출발이 확정되고 ${esc(phone)}로 문자를 보내드립니다.</div>`;
+    return `<div class="view"><div class="narrow wide">
+      <section class="box done">
+        <div><div class="label">Reservation</div><h1>예약 신청이 완료되었습니다</h1></div>
+        <div class="row"><span class="small muted">예약번호</span><code>${b.id}</code>${badge(s)}</div>
+        ${notice}
+        <dl class="kv kv-left">
+          <dt>상품</dt><dd>${t.name}</dd>
+          <dt>여행지</dt><dd>${dest.name} (${dest.region})</dd>
+          <dt>기간</dt><dd class="num">${fmtPeriod(b.date, b.nights)}</dd>
+          <dt>인원</dt><dd>${b.pax}명</dd>
+          <dt>투어 등급</dt><dd>${STYLES[b.style].name}${isCustomized(b) ? ' <span class="badge badge-accent">옵션 변경</span>' : ''}</dd>
+          <dt>구성</dt><dd>${HOTELS[b.hotel].name} · ${MEALS[b.meal].name} · ${VEHICLES[b.vehicle].name}</dd>
+          <dt>추가 메뉴</dt><dd>${addonText(b)}</dd>
+          <dt>금액</dt><dd class="num">${won(b.subtotal)}${b.discount ? ` − 할인 ${won(b.discount)} (${Math.round(b.discountRate * 100)}%)` : ''} = <b>${won(b.total)}</b></dd>
+        </dl>
+        <div class="row">
+          <a class="btn btn-primary" href="#mypage">마이페이지에서 확인</a>
+          <a class="btn" href="#home">다른 상품 보기</a>
+        </div>
+      </section>
+    </div></div>`;
+  }
+
+  // 마이페이지 화면
+  function viewMypage() {
+    const u = me(), tier = tierOf(u.id);
+    const mine = bookings.filter(b => b.userId === u.id).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    const progress = tier.next === null ? 100 : Math.round((tier.n / 3) * 100);
+    const rows = mine.length ? mine.map(b => {
+      const t = THEMES[b.theme], s = statusOf(b), step = t.fixedPax || 1;
+      const acts = [];
+      if (s.key === 'wait') acts.push(`<button type="button" class="btn btn-sm" data-action="demo-add" data-id="${b.id}" title="다른 고객의 신청을 흉내 냅니다">데모: 다른 고객 +${step}명</button>`);
+      if (s.key === 'wait' || s.key === 'ok') acts.push(`<button type="button" class="btn btn-sm btn-danger" data-action="ask-cancel" data-id="${b.id}">취소</button>`);
+      return `<tr>
+        <td><code>${b.id}</code></td>
+        <td>${t.name}<span class="sub">${destOf(b).name} · ${b.pax}명</span></td>
+        <td class="num">${fmtPeriod(b.date, b.nights)}</td>
+        <td>${STYLES[b.style].name}${isCustomized(b) ? ' <span class="badge badge-accent">옵션 변경</span>' : ''}<span class="sub">${configText(b)}</span></td>
+        <td class="r num">${won(b.total)}${b.discount ? `<span class="sub">할인 ${Math.round(b.discountRate * 100)}%</span>` : ''}</td>
+        <td>${badge(s)}</td>
+        <td><div class="actions">${acts.join('') || '<span class="muted small">–</span>'}</div></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="7" class="empty">아직 예약 내역이 없습니다. <a href="#home">테마 상품 보기</a></td></tr>`;
+
+    return `<div class="view view-tight">
+      <div><div class="label">My Page</div><h1>마이페이지</h1></div>
+      <div class="my-grid">
+        <section class="box">
+          <h2 class="h-sm">회원 정보</h2>
+          <dl class="kv kv-left">
+            <dt>아이디</dt><dd>${esc(u.id)}</dd>
+            <dt>성명</dt><dd>${esc(u.name)}</dd>
+            <dt>주소</dt><dd>${esc(u.address)}</dd>
+            <dt>연락처</dt><dd>${esc(u.phone)}</dd>
+            <dt>가입일</dt><dd class="num">${u.createdAt.replace(/-/g, '.')}</dd>
+          </dl>
+        </section>
+        <section class="box">
+          <h2 class="h-sm">회원 등급</h2>
+          <div class="tier-line">${tier.name}<span class="badge badge-accent">${tier.rate ? `${Math.round(tier.rate * 100)}% 할인` : '할인 없음'}</span></div>
+          <div class="meter" role="img" aria-label="단골 고객까지 진행도 ${progress}%"><i style="width:${progress}%"></i></div>
+          <p class="small muted">완료된 여행 ${tier.n}회. ${tier.next === null ? '최고 등급입니다.' : `${tier.next}회 더 다녀오시면 ${tier.n === 0 ? '우수 고객(5%)' : '단골 고객(10%)'}이 됩니다.`}</p>
+          <p class="small muted">기준: 1–2회 우수 고객 5% · 3회 이상 단골 고객 10%</p>
+        </section>
+      </div>
+      <section>
+        <div class="sec-head"><h2>예약 · 여행 내역</h2><button type="button" class="btn btn-sm" data-action="show-history" id="show-history">이전 여행 목록 팝업</button></div>
+        <div class="tbl-wrap"><table class="tbl" style="min-width:860px">
+          <thead><tr><th>예약번호</th><th>상품</th><th>기간</th><th>투어 등급</th><th class="r">가격</th><th>상태</th><th>관리</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <p class="note">'데모' 버튼은 다른 고객의 신청을 흉내 내어 신청 인원이 ${MIN_PAX}명에 도달할 때 출발 확정 문자가 오는 흐름을 보여줍니다.</p>
+      </section>
+    </div>`;
+  }
+
+  /* ---------------- Modal & toasts ---------------- */
+  // 팝업 열기
+  function openModal(html) {
+    modal.innerHTML = `<div class="overlay" data-overlay>${html}</div>`;
+    modal.hidden = false;
+    const f = modal.querySelector('[data-autofocus]') || modal.querySelector('button, a');
+    if (f) f.focus();
+  }
+  // 팝업 닫기
+  function closeModal() { modal.hidden = true; modal.innerHTML = ''; }
+  // 화면 오른쪽 아래 알림 메시지
+  function toast(html, cls = '', ms = 4500) {
+    const el = document.createElement('div');
+    el.className = 'toast ' + cls;
+    el.innerHTML = html;
+    toasts.appendChild(el);
+    const timer = setTimeout(() => el.remove(), ms);
+    el.addEventListener('click', e => { if (e.target.closest('[data-close]')) { clearTimeout(timer); el.remove(); } });
+  }
+  // 문자 발송 시뮬레이션 알림
+  function showSms(u, b) {
+    toast(`<div class="toast-head"><span class="label">SMS · 발송 시뮬레이션</span><button type="button" class="x" data-close aria-label="닫기">×</button></div>
+      <span class="small muted">수신 ${esc(u.phone)}</span><p>${esc(smsText(u, b))}</p>`, 'sms', 14000);
+  }
+
+  // 이전 여행 목록 팝업 (최근 출발일 순)
+  function showHistory() {
+    const u = me(); if (!u) return;
+    const tier = tierOf(u.id);
+    const list = bookings.filter(b => b.userId === u.id && !b.cancelled).sort((a, b) => b.date.localeCompare(a.date));
+    const rows = list.length ? list.map(b => `<tr>
+        <td>${THEMES[b.theme].name}<span class="sub">${destOf(b).name} · ${b.pax}명</span></td>
+        <td class="num">${fmtPeriod(b.date, b.nights)}</td>
+        <td>${STYLES[b.style].name}${isCustomized(b) ? ' <span class="badge badge-accent">옵션 변경</span>' : ''}<span class="sub">${configText(b)}</span></td>
+        <td class="r num">${won(b.total)}</td>
+        <td>${badge(statusOf(b))}</td></tr>`).join('')
+      : `<tr><td colspan="5" class="empty">아직 여행 내역이 없습니다. 첫 여행을 계획해 보세요.</td></tr>`;
+    openModal(`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="hist-title">
+      <div class="dialog-head">
+        <div><div class="label">Previous Trips</div><h2 id="hist-title">${esc(u.name)}님의 이전 여행 목록</h2></div>
+        <button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button>
+      </div>
+      <p class="small muted">${tier.name} · 완료된 여행 ${tier.n}회${tier.rate ? ` · 다음 예약에 ${Math.round(tier.rate * 100)}% 할인이 적용됩니다` : ''} · 최근 순</p>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>상품</th><th>기간</th><th>투어 등급</th><th class="r">가격</th><th>상태</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="dialog-foot">
+        <a class="btn" href="#mypage" data-action="close-modal">마이페이지</a>
+        <button type="button" class="btn btn-primary" data-action="close-modal" data-autofocus id="hist-ok">확인</button>
+      </div>
+    </div>`);
+  }
+
+  // 예약 확인 팝업
+  function openConfirm() {
+    const d = state.draft, u = me(), tier = tierOf(u.id), p = calc(d, tier.rate), t = THEMES[d.theme], dest = destOf(d);
+    openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+      <div><div class="label">Confirm</div><h2 id="cf-title">예약 내용을 확인해 주세요</h2></div>
+      <dl class="kv">
+        <dt>상품</dt><dd>${t.name}</dd>
+        <dt>여행지</dt><dd>${dest.name}</dd>
+        <dt>기간</dt><dd class="num">${fmtPeriod(d.date, d.nights)}</dd>
+        <dt>인원</dt><dd>${d.pax}명</dd>
+        <dt>투어 등급</dt><dd>${STYLES[d.style].name}${isCustomized(d) ? ' (옵션 변경)' : ''}</dd>
+        <dt>구성</dt><dd>${configText(d)}</dd>
+        <dt>추가 메뉴</dt><dd>${addonText(d)}</dd>
+        <dt>할인</dt><dd class="num">${tier.name} ${Math.round(tier.rate * 100)}% (−${won(p.discount)})</dd>
+      </dl>
+      <div class="sum-row total"><span>결제 예정 금액</span><strong class="num">${won(p.total)}</strong></div>
+      <p class="small muted">예약자 ${esc(u.name)} · ${esc(u.phone)}</p>
+      <div class="dialog-foot">
+        <button type="button" class="btn" data-action="close-modal">돌아가기</button>
+        <button type="button" class="btn btn-primary" data-action="confirm-booking" data-autofocus id="confirm-booking">예약 신청 확정</button>
+      </div>
+    </div>`);
+  }
+
+  /* ---------------- Actions ---------------- */
+  // 예약번호 생성: MW-YYMMDD-NNN
+  function newId() {
+    const d = TODAY, base = `MW-${String(d.getFullYear()).slice(2)}${pad(d.getMonth() + 1)}${pad(d.getDate())}-`;
+    let id;
+    do { id = base + String(Math.floor(100 + Math.random() * 900)); } while (bookings.some(b => b.id === id));
+    return id;
+  }
+  // 예약 저장 후 완료 화면으로 이동
+  function confirmBooking() {
+    const u = me(), d = state.draft; if (!u || !d) return;
+    const tier = tierOf(u.id), p = calc(d, tier.rate);
+    const b = Object.assign({}, d, {
+      addons: d.addons.slice(), id: newId(), userId: u.id,
+      subtotal: p.subtotal, discountRate: tier.rate, discount: p.discount, total: p.total,
+      createdAt: toKey(TODAY), cancelled: false
+    });
+    bookings.push(b);
+    save();
+    state.lastBookingId = b.id;
+    state.draft = null;
+    closeModal();
+    go('done');
+  }
+  // 로그인 처리
+  function doLogin(form) {
+    const id = form.elements.uid.value.trim(), pw = form.elements.upw.value;
+    const err = $('#login-err');
+    const u = users.find(x => x.id === id && x.pw === pw);
+    if (!u) {
+      err.textContent = id && pw ? '아이디 또는 비밀번호가 맞지 않습니다. 다시 확인해 주세요.' : '아이디와 비밀번호를 입력해 주세요.';
+      err.hidden = false;
+      return;
+    }
+    loginAs(u.id);
+  }
+  // 로그인 후 원래 페이지로 이동하고 이전 여행 팝업 표시
+  function loginAs(id) {
+    setSession(id);
+    const dest = state.returnTo || 'home';
+    state.returnTo = null;
+    go(dest);
+    showHistory();
+  }
+  // 회원가입 입력값 검사 후 저장
+  function doSignup(form) {
+    const v = n => form.elements[n].value.trim();
+    const errs = {};
+    const id = v('uid'), pw = form.elements.upw.value, pw2 = form.elements.upw2.value;
+    const name = v('uname'), addr = v('uaddr'), phoneRaw = v('uphone').replace(/[^0-9]/g, '');
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(id)) errs.uid = '영문, 숫자 3–16자로 입력해 주세요.';
+    else if (users.some(u => u.id.toLowerCase() === id.toLowerCase())) errs.uid = '이미 사용 중인 아이디입니다.';
+    if (pw.length < 4) errs.upw = '비밀번호를 4자 이상 입력해 주세요.';
+    if (pw2 !== pw || !pw2) errs.upw2 = '비밀번호가 일치하지 않습니다.';
+    if (!name) errs.uname = '성명을 입력해 주세요.';
+    if (!addr) errs.uaddr = '주소를 입력해 주세요.';
+    if (!/^01\d{8,9}$/.test(phoneRaw)) errs.uphone = '휴대전화 번호를 010-1234-5678 형식으로 입력해 주세요.';
+    form.querySelectorAll('[data-err]').forEach(el => {
+      const k = el.dataset.err, input = form.elements[k];
+      el.hidden = !errs[k]; el.textContent = errs[k] || '';
+      input.setAttribute('aria-invalid', errs[k] ? 'true' : 'false');
+    });
+    const first = Object.keys(errs)[0];
+    if (first) { form.elements[first].focus(); return; }
+    const phone = phoneRaw.length === 11 ? `${phoneRaw.slice(0, 3)}-${phoneRaw.slice(3, 7)}-${phoneRaw.slice(7)}` : `${phoneRaw.slice(0, 3)}-${phoneRaw.slice(3, 6)}-${phoneRaw.slice(6)}`;
+    users.push({ id, pw, name, address: addr, phone, createdAt: toKey(TODAY) });
+    save();
+    toast(`<b>회원가입이 완료되었습니다.</b><span class="small muted">${esc(name)}님, 환영합니다.</span>`);
+    loginAs(id);
+  }
+
+  // 폼 제출 처리 (페이지 새로고침 막기)
+  document.addEventListener('submit', e => {
+    if (e.target.id === 'loginForm') { e.preventDefault(); doLogin(e.target); }
+    else if (e.target.id === 'signupForm') { e.preventDefault(); doSignup(e.target); }
+    else if (e.target.id === 'bookForm') e.preventDefault();
+  });
+
+  // 예약 화면 옵션 변경 시 초안 갱신
+  document.addEventListener('change', e => {
+    const el = e.target;
+    if (!el.closest('#bookForm') || !state.draft) return;
+    const d = state.draft, v = el.value;
+    switch (el.name) {
+      case 'dest': d.dest = v; break;
+      case 'nights': d.nights = Number(v); break;
+      case 'date': d.date = v; break;
+      case 'style': d.style = v; d.hotel = STYLES[v].hotel; d.meal = STYLES[v].meal; break;
+      case 'hotel': d.hotel = Number(v); break;
+      case 'meal': d.meal = v; break;
+      case 'vehicle': d.vehicle = v; break;
+      case 'addon': {
+        const set = new Set(d.addons);
+        if (el.checked) set.add(v); else set.delete(v);
+        d.addons = Array.from(set);
+        break;
+      }
+      default: return;
+    }
+    normalize(d);
+    rerenderBook();
+  });
+
+  // 버튼 클릭 처리 (data-action 값으로 구분)
+  document.addEventListener('click', e => {
+    if (e.target.matches('[data-overlay]')) { closeModal(); return; }
+    const a = e.target.closest('[data-action]');
+    if (!a) return;
+    const act = a.dataset.action;
+    switch (act) {
+      case 'scroll': {
+        const el = document.getElementById(a.dataset.target);
+        if (el) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        break;
+      }
+      case 'demo-login': loginAs('demo'); break;
+      case 'fill-demo': $('#login-id').value = 'demo'; $('#login-pw').value = '1234'; $('#login-submit').focus(); break;
+      case 'logout':
+        setSession(null);
+        toast('로그아웃되었습니다.');
+        go('home');
+        break;
+      case 'pax': {
+        const d = state.draft; if (!d) break;
+        d.pax += Number(a.dataset.d);
+        normalize(d);
+        rerenderBook();
+        break;
+      }
+      case 'submit-booking':
+        if (!me()) {
+          state.returnTo = 'book-' + state.draft.theme;
+          state.notice = '예약을 신청하려면 로그인이 필요합니다. 선택한 내용은 그대로 유지됩니다.';
+          go('login');
+        } else openConfirm();
+        break;
+      case 'confirm-booking': confirmBooking(); break;
+      case 'close-modal': closeModal(); break;
+      case 'show-history': showHistory(); break;
+      case 'demo-add': {
+        const b = bookings.find(x => x.id === a.dataset.id); if (!b) break;
+        const step = THEMES[b.theme].fixedPax || 1;
+        const before = departureCount(b.theme, b.dest, b.date);
+        const k = depKey(b.theme, b.dest, b.date);
+        extra[k] = (extra[k] || 0) + step;
+        save();
+        render();
+        const after = before + step;
+        if (before < MIN_PAX && after >= MIN_PAX) showSms(me(), b);
+        else toast(`다른 고객 ${step}명이 같은 일정에 신청했습니다. 현재 ${after}/${MIN_PAX}명`);
+        break;
+      }
+      case 'ask-cancel': {
+        const b = bookings.find(x => x.id === a.dataset.id); if (!b) break;
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="cc-title">
+          <h2 id="cc-title">예약을 취소할까요?</h2>
+          <p>${THEMES[b.theme].name} · ${destOf(b).name}<br><span class="small muted num">${fmtPeriod(b.date, b.nights)}</span></p>
+          <p class="small muted">취소한 예약은 되돌릴 수 없습니다.</p>
+          <div class="dialog-foot">
+            <button type="button" class="btn" data-action="close-modal" data-autofocus>닫기</button>
+            <button type="button" class="btn btn-danger" data-action="do-cancel" data-id="${b.id}" id="do-cancel">예약 취소</button>
+          </div>
+        </div>`);
+        break;
+      }
+      case 'do-cancel': {
+        const b = bookings.find(x => x.id === a.dataset.id);
+        if (b) { b.cancelled = true; save(); }
+        closeModal();
+        render();
+        toast('예약이 취소되었습니다.');
+        break;
+      }
+      case 'reset':
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="rs-title">
+          <h2 id="rs-title">데모 데이터를 초기화할까요?</h2>
+          <p class="small muted">가입한 회원과 예약 내역을 지우고 데모 계정과 예시 여행 3건만 남깁니다.</p>
+          <div class="dialog-foot">
+            <button type="button" class="btn" data-action="close-modal" data-autofocus>닫기</button>
+            <button type="button" class="btn btn-danger" data-action="do-reset" id="do-reset">초기화</button>
+          </div>
+        </div>`);
+        break;
+      case 'do-reset':
+        seed();
+        session = null;
+        state.draft = null; state.returnTo = null; state.lastBookingId = null;
+        closeModal();
+        toast('데모 데이터를 초기화했습니다.');
+        go('home');
+        break;
+    }
+  });
+
+  // Esc 키로 팝업 닫기
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+
+  // 첫 화면 그리기
+  render();
+})();
+</script>
