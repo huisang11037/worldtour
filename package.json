@@ -1,0 +1,19 @@
+{
+  "name": "mrworld-theme-tour",
+  "version": "1.0.0",
+  "private": true,
+  "description": "미스터 월드 테마 여행 서비스 - 고객/직원 인터페이스 + 백엔드(API, SQLite DB)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "reset-db": "node server/seed.js --reset",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "express": "4.22.3"
+  }
+}
