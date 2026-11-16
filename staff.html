@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미스터 월드 직원 포털</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 고객 화면(index.html)과 같은 디자인 토큰을 사용한다 */
+:root {
+  --bg: #ffffff; --surface: #f3f4f6; --fg: #15171c; --muted: #5d6470; --line: #cfd3da; --strong: #15171c;
+  --accent: #2a55d0; --accent-weak: #e9eefc; --on-accent: #ffffff;
+  --ok: #17794a; --ok-weak: #e6f4ec; --warn: #965800; --warn-weak: #fbf1e1; --danger: #b42318; --danger-weak: #fdeceb;
+  --scrim: rgba(21, 23, 28, 0.5); --shadow: rgba(21, 23, 28, 0.14);
+  --font-sans: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
+    --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
+    --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70; --danger-weak: #2e1514;
+    --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
+  --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
+  --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70; --danger-weak: #2e1514;
+  --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.6; }
+a { color: var(--accent); }
+h1, h2, h3 { margin: 0; line-height: 1.3; font-weight: 700; }
+h1 { font-size: clamp(22px, 3vw, 26px); }
+h2 { font-size: 19px; }
+h3 { font-size: 16px; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: calc(1240px + 32px); margin-inline: auto; padding-inline: 16px; }
+
+.site-head { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--strong); }
+.site-head .wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; min-height: 56px; flex-wrap: wrap; padding-block: 8px; }
+.logo { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; }
+.logo b { font-family: var(--font-mono); font-weight: 500; font-size: 16px; letter-spacing: 0.06em; }
+.proto { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--accent); color: var(--accent); padding: 1px 6px; }
+.who { color: var(--muted); font-size: 13px; }
+.tabs { border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 57px; z-index: 19; }
+.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; }
+.tabs a { padding: 10px 12px; color: var(--muted); text-decoration: none; font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
+.tabs a.is-active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+
+#app { padding-block: 24px 64px; }
+.view { display: flex; flex-direction: column; gap: 28px; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+.ok-t { color: var(--ok); } .warn-t { color: var(--warn); } .danger-t { color: var(--danger); }
+.box { border: 1px solid var(--line); background: var(--bg); padding: 18px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spread { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border: 1px solid var(--line); background: var(--surface); }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--strong); padding-bottom: 8px; margin-bottom: 14px; }
+.note { font-size: 13px; color: var(--muted); margin-top: 10px; max-width: 90ch; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.3;
+  padding: 7px 13px; border: 1px solid var(--strong); border-radius: var(--r); background: var(--bg); color: var(--fg); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { background: var(--surface); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-sm { padding: 3px 9px; font-size: 13px; }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.badge { display: inline-block; font-size: 12px; font-weight: 500; line-height: 1.5; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
+.st-ok, .st-confirmed { color: var(--ok); background: var(--ok-weak); }
+.st-wait, .st-open { color: var(--warn); background: var(--warn-weak); }
+.st-done { color: var(--muted); }
+.st-ongoing { color: var(--accent); background: var(--accent-weak); }
+.st-cancel, .st-closed { color: var(--danger); }
+.st-low { color: var(--danger); background: var(--danger-weak); }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl th { font-weight: 500; font-size: 12px; color: var(--muted); text-align: left; background: var(--surface); white-space: nowrap; }
+.tbl th, .tbl td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl .r { text-align: right; }
+.tbl .sub { display: block; font-size: 12px; color: var(--muted); }
+.tbl .empty { text-align: center; color: var(--muted); padding: 24px 12px; }
+.tbl tr.is-off td { color: var(--muted); }
+.tbl input, .tbl select { font: inherit; font-size: 14px; padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--fg); width: 100%; min-width: 70px; }
+
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi { border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 2px; }
+.kpi b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
+.alert { padding: 10px 12px; border: 1px solid var(--warn); background: var(--warn-weak); font-size: 14px; display: grid; gap: 4px; }
+.alert.danger { border-color: var(--danger); background: var(--danger-weak); }
+.alert.ok { border-color: var(--ok); background: var(--ok-weak); }
+
+.prog { display: grid; gap: 4px; min-width: 120px; }
+.bar { height: 6px; background: var(--surface); border: 1px solid var(--line); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--warn); }
+.bar.full i { background: var(--ok); }
+
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.fld { display: grid; gap: 4px; font-size: 13px; min-width: 0; }
+.fld > span { font-weight: 500; }
+.fld input, .fld select, .fld textarea {
+  font: inherit; font-size: 14px; width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--fg); }
+.fld textarea { min-height: 76px; resize: vertical; }
+.fld input:focus, .fld select:focus, .fld textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.form-grid .span-2 { grid-column: span 2; }
+.form-grid .span-4 { grid-column: 1 / -1; }
+@media (max-width: 760px) { .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .form-grid .span-4, .form-grid .span-2 { grid-column: 1 / -1; } }
+.err { color: var(--danger); font-size: 13px; }
+.hint { color: var(--muted); font-size: 12px; }
+
+.theme-box { display: grid; gap: 16px; }
+.theme-box.is-off { border-style: dashed; }
+.theme-box summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.theme-box summary::-webkit-details-marker { display: none; }
+.theme-box[open] summary { padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
+
+.narrow { width: 100%; max-width: 420px; margin: 40px auto; }
+.form-box { display: grid; gap: 16px; padding: 26px; }
+.stack { display: grid; gap: 12px; }
+.demo-hint { font-size: 13px; padding: 10px 12px; border: 1px dashed var(--line); background: var(--surface); }
+
+#modal { position: fixed; inset: 0; z-index: 50; }
+.overlay { position: absolute; inset: 0; background: var(--scrim); display: grid; place-items: center; padding: 16px; }
+.dialog { width: min(980px, 100%); max-height: 100%; overflow: auto; background: var(--bg); border: 1px solid var(--strong); padding: 22px; display: grid; gap: 14px; }
+.dialog.sm { width: min(480px, 100%); }
+.dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+#toasts { position: fixed; z-index: 60; display: grid; gap: 8px; right: 16px; bottom: 16px; width: min(360px, calc(100vw - 32px)); }
+.toast { background: var(--bg); border: 1px solid var(--strong); padding: 12px 14px; font-size: 14px; box-shadow: 0 8px 24px var(--shadow); }
+.toast.error { border-color: var(--danger); color: var(--danger); }
+.x { border: 0; background: none; color: var(--muted); font: inherit; font-size: 20px; line-height: 1; padding: 2px 4px; cursor: pointer; }
+.site-foot { border-top: 1px solid var(--line); }
+.site-foot .wrap { padding-block: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="#dash"><b>MR. WORLD</b><span class="proto">Staff</span></a>
+    <div class="row" id="userbox"></div>
+  </div>
+</header>
+<nav class="tabs" id="tabs" aria-label="직원 메뉴" hidden><div class="wrap">
+  <a href="#dash" data-tab="dash">운영 현황</a>
+  <a href="#departures" data-tab="departures">출발 일정 · 예약</a>
+  <a href="#products" data-tab="products">여행 상품 기획</a>
+  <a href="#inventory" data-tab="inventory">창고 물품 · 재고</a>
+  <a href="#customers" data-tab="customers">고객</a>
+  <a href="#sms" data-tab="sms">문자 발송 기록</a>
+</div></nav>
+<main class="wrap" id="app"></main>
+<footer class="site-foot">
+  <div class="wrap">
+    <span>미스터 월드 테마 여행 서비스 · 직원 인터페이스 · <a href="/">고객 화면으로</a></span>
+    <button type="button" class="btn btn-sm" data-action="ask-reset" id="reset-btn" hidden>데모 데이터 초기화</button>
+  </div>
+</footer>
+<div id="modal" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- 공통 도우미 ---------------- */
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const won = n => Number(n || 0).toLocaleString('ko-KR') + '원';
+  const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+  const fmtDate = s => { if (!s) return '–'; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return `${y}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')} (${DOW[new Date(y, m - 1, d).getDay()]})`; };
+  const unitL = u => (u === 'team' ? '팀' : '명');
+  const DEP_ST = { open: '모집 중', confirmed: '출발 확정', closed: '운영 취소' };
+  const depBadge = d => `<span class="badge st-${d.status}">${DEP_ST[d.status]}</span>`;
+  const progress = d => {
+    const pct = Math.min(100, Math.round((d.progress / Math.max(1, d.min)) * 100));
+    return `<div class="prog"><span class="small num">${d.progress}/${d.min}${unitL(d.unit)}${d.unit === 'team' ? ` · ${d.count}명` : ''}</span>
+      <div class="bar${d.progress >= d.min ? ' full' : ''}"><i style="width:${pct}%"></i></div></div>`;
+  };
+
+  // API 호출: 실패하면 서버의 error 메시지로 예외
+  async function api(method, url, body) {
+    const res = await fetch('/api' + url, {
+      method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 빈 응답 */ }
+    if (!res.ok) {
+      const err = new Error((data && data.error) || `요청에 실패했습니다 (${res.status})`);
+      err.status = res.status; err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  const app = $('#app'), modal = $('#modal'), toasts = $('#toasts');
+  const state = { me: null, catalog: null, depFilter: { scope: 'upcoming', status: '', theme: '', booked: true } };
+
+  function toast(msg, cls = '') {
+    const el = document.createElement('div');
+    el.className = 'toast ' + cls;
+    el.textContent = msg;
+    toasts.appendChild(el);
+    setTimeout(() => el.remove(), cls === 'error' ? 6000 : 3500);
+  }
+  function openModal(html) {
+    modal.innerHTML = `<div class="overlay" data-overlay>${html}</div>`;
+    modal.hidden = false;
+    const f = modal.querySelector('[data-autofocus]') || modal.querySelector('input, select, button');
+    if (f) f.focus();
+  }
+  function closeModal() { modal.hidden = true; modal.innerHTML = ''; }
+  // 실패 시 메시지 표시 후 null 반환
+  async function attempt(fn) {
+    try { return await fn(); } catch (e) {
+      if (e.status === 401 || e.status === 403) { state.me = null; render(); }
+      toast(e.message, 'error');
+      return null;
+    }
+  }
+
+  /* ---------------- 라우팅 ---------------- */
+  const route = () => decodeURIComponent(location.hash.slice(1)) || 'dash';
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+
+  async function render() {
+    if (!state.me) {
+      try { const r = await api('GET', '/me'); state.me = r.user && r.user.role === 'staff' ? r.user : null; } catch (e) { state.me = null; }
+    }
+    renderHead();
+    if (!state.me) { app.innerHTML = viewLogin(); return; }
+    const r = route();
+    document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('is-active', a.dataset.tab === r));
+    app.innerHTML = '<p class="muted">불러오는 중…</p>';
+    const views = { dash: viewDash, departures: viewDepartures, products: viewProducts, inventory: viewInventory, customers: viewCustomers, sms: viewSms };
+    const fn = views[r] || viewDash;
+    const html = await attempt(fn);
+    if (html !== null && route() === r) app.innerHTML = html;
+  }
+  function renderHead() {
+    $('#tabs').hidden = !state.me;
+    $('#reset-btn').hidden = !state.me;
+    $('#userbox').innerHTML = state.me
+      ? `<span class="who">${esc(state.me.name)} (${esc(state.me.id)})</span><button type="button" class="btn btn-sm" data-action="logout">로그아웃</button>`
+      : '';
+  }
+
+  /* ---------------- 로그인 ---------------- */
+  function viewLogin() {
+    return `<div class="narrow"><section class="box form-box">
+      <div><div class="label">Staff Login</div><h1>직원 로그인</h1></div>
+      <form id="loginForm" class="stack" novalidate>
+        <label class="fld"><span>아이디</span><input name="uid" autocomplete="username" data-autofocus></label>
+        <label class="fld"><span>비밀번호</span><input name="upw" type="password" autocomplete="current-password"></label>
+        <div class="err" id="login-err" hidden></div>
+        <button class="btn btn-primary btn-block" type="submit">로그인</button>
+      </form>
+      <div class="demo-hint">데모 직원 계정 <code>staff</code> / <code>1234</code></div>
+    </section></div>`;
+  }
+
+  /* ---------------- 운영 현황 ---------------- */
+  async function viewDash() {
+    const s = await api('GET', '/staff/summary');
+    const kpi = (label, v, sub) => `<div class="kpi"><span class="label">${label}</span><b>${v}</b>${sub ? `<span class="small muted">${sub}</span>` : ''}</div>`;
+    const alerts = [];
+    s.urgent.forEach(d => alerts.push(`<div class="alert"><b>출발 임박 · 인원 미달</b><span>${fmtDate(d.date)} ${esc(d.themeName)} (${esc(d.destName)}) — ${d.progress}/${d.min}${unitL(d.unit)}. 추가 모집 또는 운영 취소를 결정해 주세요.</span>
+      <span><button type="button" class="btn btn-sm" data-action="dep-detail" data-id="${d.id}">일정 상세</button></span></div>`));
+    s.lowStock.forEach(i => alerts.push(`<div class="alert danger"><b>재고 부족 · ${esc(i.name)}</b><span>현재 ${i.stock}${esc(i.unit)}${i.pending ? `, 확정 대기 예약 출고 예정 ${i.pending}${esc(i.unit)}` : ''} · 안전 재고 ${i.safety}${esc(i.unit)}. 입고가 필요합니다.</span>
+      <span><a class="btn btn-sm" href="#inventory">재고 관리로</a></span></div>`));
+    return `<div class="view">
+      <div class="spread"><div><div class="label">Operations · ${fmtDate(s.today)}</div><h1>운영 현황</h1></div>
+        <a class="btn btn-primary" href="#departures">출발 일정 전체 보기</a></div>
+      <div class="kpis">
+        ${kpi('예정 출발 일정', s.departures.active + '건', '신청이 있는 일정')}
+        ${kpi('출발 확정', s.departures.confirmed + '건', '<span class="ok-t">문자 발송 완료</span>')}
+        ${kpi('모집 중', s.departures.waiting + '건', '최소 인원 미달')}
+        ${kpi('예약 인원', s.departures.pax + '명', `최근 7일 신규 예약 ${s.newBookings7d}건`)}
+        ${kpi('예정 매출', won(s.departures.revenue), `회원 ${s.customers}명`)}
+      </div>
+      <section>
+        <div class="sec-head"><h2>확인 필요</h2><span class="label">Alerts</span></div>
+        <div class="stack">${alerts.join('') || '<div class="alert ok">처리할 알림이 없습니다.</div>'}</div>
+      </section>
+      <section>
+        <div class="sec-head"><h2>다가오는 출발 일정</h2><span class="label">Upcoming</span></div>
+        ${depTable(s.upcoming)}
+      </section>
+    </div>`;
+  }
+
+  function depTable(list) {
+    const rows = list.length ? list.map(d => `<tr>
+      <td class="num">${fmtDate(d.date)}</td>
+      <td>${esc(d.themeName)}<span class="sub">${esc(d.destName)} · ${esc(d.region)}${d.memo ? ` · ${esc(d.memo)}` : ''}</span></td>
+      <td>${progress(d)}</td>
+      <td>${depBadge(d)}${d.confirmedAt ? `<span class="sub">${esc(d.confirmedAt.slice(0, 16))}</span>` : ''}</td>
+      <td class="r num">${won(d.revenue)}</td>
+      <td>${d.item ? `${esc(d.item.name)}<span class="sub num">${d.item.need}${esc(d.item.unit)}${d.status === 'confirmed' ? ' 출고' : ' 예정'}</span>` : '<span class="muted">–</span>'}</td>
+      <td><button type="button" class="btn btn-sm" data-action="dep-detail" data-id="${d.id}">상세 · 예약자</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">조건에 맞는 출발 일정이 없습니다.</td></tr>';
+    return `<div class="tbl-wrap"><table class="tbl" style="min-width:900px">
+      <thead><tr><th>출발일</th><th>상품 · 여행지</th><th>신청 현황</th><th>상태</th><th class="r">예약 금액</th><th>기념품</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+
+  /* ---------------- 출발 일정 · 예약 ---------------- */
+  async function loadCatalog() {
+    state.catalog = await api('GET', '/staff/themes');
+    return state.catalog;
+  }
+  async function viewDepartures() {
+    const f = state.depFilter;
+    const cat = await loadCatalog();
+    const q = new URLSearchParams({ scope: f.scope, status: f.status, theme: f.theme, booked: f.booked ? '1' : '' });
+    const list = await api('GET', '/staff/departures?' + q);
+    const sel = (name, opts, cur) => `<select name="${name}" data-filter>${opts.map(([v, l]) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    return `<div class="view">
+      <div class="spread"><div><div class="label">Departures</div><h1>출발 일정 · 예약 관리</h1></div>
+        <button type="button" class="btn btn-primary" data-action="new-departure">출발일 추가</button></div>
+      <div class="box filters" id="depFilters">
+        <label class="fld"><span>기간</span>${sel('scope', [['upcoming', '예정 일정'], ['past', '지난 일정'], ['all', '전체']], f.scope)}</label>
+        <label class="fld"><span>상태</span>${sel('status', [['', '전체 상태'], ['open', '모집 중'], ['confirmed', '출발 확정'], ['closed', '운영 취소']], f.status)}</label>
+        <label class="fld"><span>상품</span>${sel('theme', [['', '전체 상품']].concat(cat.themes.map(t => [t.id, t.name])), f.theme)}</label>
+        <label class="check"><input type="checkbox" name="booked" data-filter${f.booked ? ' checked' : ''}> 신청이 있는 일정만</label>
+        <span class="small muted" style="margin-left:auto">${list.length}건</span>
+      </div>
+      ${depTable(list)}
+      <p class="note">출발 확정 규칙: 허니문 낭만 투어는 신청 2팀 이상, 그 외 테마는 신청 인원 3명 이상이면 자동으로 확정되고 예약자 전원에게 문자가 발송되며 기념품이 출고됩니다. 확정 이후 일부 취소가 생겨도 확정 상태는 유지됩니다. 기준은 '여행 상품 기획'에서 바꿀 수 있습니다.</p>
+    </div>`;
+  }
+
+  async function showDeparture(id) {
+    const d = await attempt(() => api('GET', `/staff/departures/${id}`));
+    if (!d) return;
+    const rows = d.bookings.length ? d.bookings.map(b => `<tr class="${b.cancelled ? 'is-off' : ''}">
+      <td><code>${esc(b.id)}</code><span class="sub">${esc(b.createdAt)}</span></td>
+      <td>${esc(b.customer.name)}<span class="sub">${esc(b.customer.id)} · ${esc(b.customer.phone)}</span></td>
+      <td class="num">${b.pax}명 · ${b.nights}박</td>
+      <td>${esc(b.labels.style)}<span class="sub">${esc(b.labels.hotel)} · ${esc(b.labels.meal)} · ${esc(b.labels.vehicle)}${b.labels.addons.length ? ' · +' + esc(b.labels.addons.join(', ')) : ''}</span></td>
+      <td class="r num">${won(b.total)}${b.discount ? `<span class="sub">할인 ${Math.round(b.discountRate * 100)}%</span>` : ''}${b.payment ? `<span class="sub">${esc(b.payment.status)} · ${esc(b.payment.info)}</span><span class="sub">${esc(b.payment.approval)}</span>` : ''}</td>
+      <td><span class="badge st-${b.status.key}">${esc(b.status.label)}</span>${b.itemsAllocated ? `<span class="sub">기념품 ${b.itemsAllocated} 출고</span>` : ''}</td>
+      <td>${!b.cancelled && d.status !== 'closed' && d.date > todayKey() ? `<button type="button" class="btn btn-sm btn-danger" data-action="cancel-booking" data-id="${esc(b.id)}" data-dep="${d.id}">취소</button>` : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">아직 예약이 없습니다.</td></tr>';
+    const canClose = d.status !== 'closed' && d.date > todayKey();
+    openModal(`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dep-title">
+      <div class="dialog-head">
+        <div><div class="label">Departure #${d.id}</div><h2 id="dep-title">${esc(d.themeName)} · ${esc(d.destName)} · ${fmtDate(d.date)}</h2></div>
+        <button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button>
+      </div>
+      <div class="row">${depBadge(d)} ${progress(d)} <span class="small muted">예약 금액 ${won(d.revenue)}${d.item ? ` · ${esc(d.item.name)} ${d.item.need}${esc(d.item.unit)}` : ''}${d.memo ? ` · 메모: ${esc(d.memo)}` : ''}</span></div>
+      <div class="tbl-wrap"><table class="tbl" style="min-width:860px">
+        <thead><tr><th>예약번호</th><th>고객</th><th>인원 · 기간</th><th>구성</th><th class="r">금액</th><th>상태</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <div class="dialog-foot">
+        ${canClose ? `<button type="button" class="btn btn-danger" data-action="ask-close-dep" data-id="${d.id}">출발 일정 운영 취소</button>` : ''}
+        <button type="button" class="btn btn-primary" data-action="close-modal">닫기</button>
+      </div>
+    </div>`);
+  }
+  const todayKey = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; };
+
+  function newDepartureForm() {
+    const cat = state.catalog;
+    if (!cat) return;
+    const themes = cat.themes.filter(t => t.active);
+    const destOpts = t => t.dests.filter(d => d.active).map(d => `<option value="${esc(d.id)}">${esc(d.name)} (${esc(d.region)})</option>`).join('');
+    openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="nd-title">
+      <div class="dialog-head"><h2 id="nd-title">출발일 추가</h2><button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button></div>
+      <p class="small muted">매주 토요일 정기 출발 외에 특별 출발 일정을 추가합니다. 고객 예약 화면의 출발일 목록에 바로 나타납니다.</p>
+      <form id="depForm" class="stack" novalidate>
+        <label class="fld"><span>상품</span><select name="theme" id="nd-theme">${themes.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select></label>
+        <label class="fld"><span>여행지</span><select name="dest" id="nd-dest">${themes.length ? destOpts(themes[0]) : ''}</select></label>
+        <label class="fld"><span>출발일</span><input type="date" name="date" min="${todayKey()}" required></label>
+        <label class="fld"><span>메모 (선택)</span><input name="memo" maxlength="100" placeholder="예) 크리스마스 특별 출발"></label>
+        <div class="err" id="form-err" hidden></div>
+        <div class="dialog-foot"><button type="button" class="btn" data-action="close-modal">닫기</button><button type="submit" class="btn btn-primary">추가</button></div>
+      </form>
+    </div>`);
+    $('#nd-theme').addEventListener('change', e => {
+      const t = themes.find(x => x.id === e.target.value);
+      $('#nd-dest').innerHTML = t ? destOpts(t) : '';
+    });
+  }
+
+  /* ---------------- 여행 상품 기획 ---------------- */
+  async function viewProducts() {
+    const cat = await loadCatalog();
+    const prices = await api('GET', '/staff/prices');
+    const themeBox = t => `
+      <details class="box theme-box${t.active ? '' : ' is-off'}" data-theme-box="${esc(t.id)}">
+        <summary>
+          <div><div class="label">${esc(t.en)} · <code>${esc(t.id)}</code></div><h3>${esc(t.name)} ${t.active ? '' : '<span class="badge st-closed">판매 중지</span>'}</h3></div>
+          <div class="chips">
+            <span class="chip">1인 ${won(t.base)}</span>
+            <span class="chip">${esc(cat.styles[t.minStyle].name)} 이상</span>
+            <span class="chip">${t.fixedPax ? t.fixedPax + '인 전용' : '최대 ' + t.maxPax + '인'}</span>
+            <span class="chip">확정: ${t.confirmMin}${unitL(t.confirmUnit)} 이상</span>
+            <span class="chip">${t.item ? esc(t.item.name) : '기념품 없음'}</span>
+            <span class="chip">예정 예약 ${t.activeBookings}건</span>
+          </div>
+        </summary>
+        ${themeForm(cat, t)}
+        <div>
+          <h3 style="margin-bottom:8px">여행지</h3>
+          <div class="tbl-wrap"><table class="tbl" style="min-width:640px">
+            <thead><tr><th>코드</th><th>여행지</th><th>지역</th><th>1인 추가요금</th><th>판매</th><th></th></tr></thead>
+            <tbody>
+              ${t.dests.map(d => `<tr data-dest-row="${d.dbId}" class="${d.active ? '' : 'is-off'}">
+                <td><code>${esc(d.id)}</code></td>
+                <td><input name="name" value="${esc(d.name)}" maxlength="30" aria-label="여행지 이름"></td>
+                <td><select name="region" aria-label="지역">${['국내', '해외'].map(r => `<option${r === d.region ? ' selected' : ''}>${r}</option>`).join('')}</select></td>
+                <td><input name="extra" type="number" min="0" step="10000" value="${d.extra}" aria-label="추가요금"></td>
+                <td><label class="check"><input type="checkbox" name="active"${d.active ? ' checked' : ''}> 판매</label></td>
+                <td><button type="button" class="btn btn-sm" data-action="save-dest" data-id="${d.dbId}">저장</button></td>
+              </tr>`).join('')}
+              <tr data-new-dest="${esc(t.id)}">
+                <td><input name="code" placeholder="예) guam" maxlength="24" aria-label="새 여행지 코드"></td>
+                <td><input name="name" placeholder="여행지 이름" maxlength="30" aria-label="새 여행지 이름"></td>
+                <td><select name="region" aria-label="지역"><option>국내</option><option>해외</option></select></td>
+                <td><input name="extra" type="number" min="0" step="10000" value="0" aria-label="추가요금"></td>
+                <td></td>
+                <td><button type="button" class="btn btn-sm btn-primary" data-action="add-dest" data-theme="${esc(t.id)}">추가</button></td>
+              </tr>
+            </tbody></table></div>
+        </div>
+      </details>`;
+    const priceTable = (title, kind, list, unit) => `
+      <div class="box"><h3 style="margin-bottom:8px">${title}</h3>
+        <table class="tbl"><tbody>${list.map(p => `<tr><td>${esc(p.name)}${p.capacity ? `<span class="sub">${p.capacity}인 탑승</span>` : ''}</td>
+          <td style="width:150px"><input type="number" min="0" step="1000" data-price="${kind}" data-code="${esc(p.code)}" value="${p.price}" aria-label="${esc(p.name)} 가격"></td></tr>`).join('')}</tbody></table>
+        <p class="hint" style="margin-top:6px">${unit}</p></div>`;
+    return `<div class="view">
+      <div class="spread"><div><div class="label">Product Planning</div><h1>여행 상품 기획</h1></div>
+        <button type="button" class="btn btn-primary" data-action="new-theme">새 테마 상품 만들기</button></div>
+      <section>
+        <div class="sec-head"><h2>테마 패키지</h2><span class="label">A. Theme Packages</span></div>
+        <div class="stack">${cat.themes.map(themeBox).join('')}</div>
+        <p class="note">상품 정보를 저장하면 고객 화면에 바로 반영됩니다. 출발 확정 기준을 낮추면 조건을 만족한 모집 중 일정은 즉시 확정되고 문자가 발송됩니다.</p>
+      </section>
+      <section>
+        <div class="sec-head"><h2>옵션 가격표</h2><span class="label">B. Tour Level Options</span></div>
+        <div class="grid-2" id="priceForm">
+          ${priceTable('호텔 등급', 'hotels', prices.hotels, '1인 1박 가격')}
+          ${priceTable('식사', 'meals', prices.meals, '1인 1일 가격')}
+          ${priceTable('교통', 'vehicles', prices.vehicles, '1일 가격 (차량 1대)')}
+          ${priceTable('식사 추가 메뉴', 'addons', prices.addons, '1인 1일 가격 · 고급 레스토랑 식사에는 샴페인 포함')}
+        </div>
+        <div class="row" style="margin-top:12px"><button type="button" class="btn btn-primary" data-action="save-prices">가격표 저장</button>
+          <span class="small muted">투어 등급별 기본 구성: ${cat.styleOrder.map(k => `${esc(cat.styles[k].name)} = ${cat.styles[k].hotel}성급 + ${esc(cat.styles[k].meal)}`).join(' · ')}</span></div>
+      </section>
+    </div>`;
+  }
+
+  function themeForm(cat, t) {
+    const isNew = !t;
+    t = t || { id: '', name: '', en: '', who: '', base: 300000, minStyle: 'classic', fixedPax: 0, maxPax: 10, vehicle: 'van', confirmUnit: 'person', confirmMin: 3, item: null, services: [], active: true };
+    const opt = (list, cur) => list.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    return `<form class="form-grid" data-theme-form="${esc(t.id)}" novalidate>
+      ${isNew ? `<label class="fld"><span>상품 코드</span><input name="code" placeholder="예) family" maxlength="24" required><span class="hint">영문 소문자 (URL에 사용)</span></label>` : ''}
+      <label class="fld${isNew ? '' : ' span-2'}"><span>상품명</span><input name="name" value="${esc(t.name)}" maxlength="40" required></label>
+      <label class="fld"><span>영문명</span><input name="en" value="${esc(t.en)}" maxlength="60" required></label>
+      <label class="fld"><span>동행 대상</span><input name="who" value="${esc(t.who)}" maxlength="40"></label>
+      <label class="fld"><span>1인 기본가 (원)</span><input name="base" type="number" min="0" step="10000" value="${t.base}"></label>
+      <label class="fld"><span>선택 가능 최소 등급</span><select name="minStyle">${opt(cat.styleOrder.map(k => [k, cat.styles[k].name + ' 이상']), t.minStyle)}</select></label>
+      <label class="fld"><span>기본 차량</span><select name="vehicle">${opt(cat.vehicleOrder.map(k => [k, cat.vehicles[k].name]), t.vehicle)}</select></label>
+      <label class="fld"><span>인원 구성</span><select name="fixedPax">${opt([[0, '인원 자유'], [2, '2인 전용 (커플)']], t.fixedPax)}</select></label>
+      <label class="fld"><span>최대 인원</span><input name="maxPax" type="number" min="1" max="30" value="${t.maxPax}"></label>
+      <label class="fld"><span>출발 확정 기준</span><select name="confirmUnit">${opt([['person', '신청 인원 수'], ['team', '신청 팀(예약) 수']], t.confirmUnit)}</select></label>
+      <label class="fld"><span>최소 인원/팀</span><input name="confirmMin" type="number" min="1" max="50" value="${t.confirmMin}"></label>
+      <label class="fld"><span>제공 기념품</span><select name="itemId">${opt([['', '없음']].concat(cat.items.map(i => [i.id, i.name])), t.item ? t.item.id : '')}</select></label>
+      <label class="fld"><span>1인당 기념품 수량</span><input name="itemPerPerson" type="number" min="0" max="10" value="${t.item ? t.item.perPerson : 1}"></label>
+      <label class="fld span-4"><span>제공 서비스 (한 줄에 하나)</span><textarea name="services">${esc(t.services.join('\n'))}</textarea></label>
+      <div class="span-4 spread">
+        <label class="check"><input type="checkbox" name="active"${t.active ? ' checked' : ''}> 고객 화면에 판매</label>
+        <span class="err" data-form-err hidden></span>
+        ${isNew ? '' : `<button type="submit" class="btn btn-primary">상품 정보 저장</button>`}
+      </div>
+    </form>`;
+  }
+  function readThemeForm(form) {
+    const el = form.elements;
+    const out = {
+      name: el.name.value, en: el.en.value, who: el.who.value, base: Number(el.base.value), minStyle: el.minStyle.value,
+      vehicle: el.vehicle.value, fixedPax: Number(el.fixedPax.value), maxPax: Number(el.maxPax.value),
+      confirmUnit: el.confirmUnit.value, confirmMin: Number(el.confirmMin.value),
+      itemId: el.itemId.value === '' ? null : Number(el.itemId.value), itemPerPerson: Number(el.itemPerPerson.value),
+      services: el.services.value.split('\n').map(s => s.trim()).filter(Boolean), active: el.active.checked
+    };
+    if (el.code) out.code = el.code.value;
+    return out;
+  }
+  function newThemeForm() {
+    openModal(`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="nt-title">
+      <div class="dialog-head"><div><div class="label">New Theme</div><h2 id="nt-title">새 테마 상품 만들기</h2></div><button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button></div>
+      ${themeForm(state.catalog, null)}
+      <div class="row"><label class="fld" style="flex:1"><span>첫 여행지 이름</span><input id="nt-dest-name" placeholder="예) 제주" maxlength="30"></label>
+        <label class="fld"><span>여행지 코드</span><input id="nt-dest-code" placeholder="예) jeju" maxlength="24"></label>
+        <label class="fld"><span>지역</span><select id="nt-dest-region"><option>국내</option><option>해외</option></select></label>
+        <label class="fld"><span>추가요금</span><input id="nt-dest-extra" type="number" min="0" step="10000" value="0"></label></div>
+      <div class="dialog-foot"><button type="button" class="btn" data-action="close-modal">닫기</button><button type="button" class="btn btn-primary" data-action="create-theme">상품 만들기</button></div>
+    </div>`);
+  }
+
+  /* ---------------- 창고 물품 · 재고 ---------------- */
+  async function viewInventory() {
+    const [items, moves] = await Promise.all([api('GET', '/staff/items'), api('GET', '/staff/stock-moves')]);
+    const KIND = { in: '입고', out: '출고', return: '반납', adjust: '조정' };
+    const itemRows = items.map(i => {
+      const after = i.stock - i.pending, low = after <= i.safety;
+      return `<tr>
+        <td><b>${esc(i.name)}</b><span class="sub"><code>${esc(i.code)}</code> · ${i.themes.length ? esc(i.themes.join(', ')) : '연결된 상품 없음'}</span></td>
+        <td class="r num"><b>${i.stock}</b> ${esc(i.unit)}</td>
+        <td class="r num">${i.pending ? `${i.pending} ${esc(i.unit)}` : '–'}</td>
+        <td class="r num">${i.safety} ${esc(i.unit)}</td>
+        <td>${low ? `<span class="badge st-low">${after < 0 ? '부족' : '입고 필요'}</span>` : '<span class="badge st-ok">정상</span>'}</td>
+        <td><div class="row">
+          <button type="button" class="btn btn-sm btn-primary" data-action="stock-in" data-id="${i.id}">입고</button>
+          <button type="button" class="btn btn-sm" data-action="stock-adjust" data-id="${i.id}">조정</button>
+          <button type="button" class="btn btn-sm" data-action="item-edit" data-id="${i.id}">수정</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+    state.items = items;
+    const moveRows = moves.length ? moves.map(m => `<tr>
+      <td class="num small">${esc(m.createdAt)}</td>
+      <td>${esc(m.itemName)}</td>
+      <td><span class="badge ${m.qty > 0 ? 'st-ok' : 'st-wait'}">${KIND[m.kind]}</span></td>
+      <td class="r num ${m.qty > 0 ? 'ok-t' : 'warn-t'}">${m.qty > 0 ? '+' : ''}${m.qty} ${esc(m.unit)}</td>
+      <td>${m.bookingId ? `<code>${esc(m.bookingId)}</code> ` : ''}${esc(m.memo)}</td>
+      <td class="small muted">${esc(m.staffName || '시스템')}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">이력이 없습니다.</td></tr>';
+    return `<div class="view">
+      <div class="spread"><div><div class="label">Warehouse</div><h1>창고 물품 · 재고 관리</h1></div>
+        <button type="button" class="btn btn-primary" data-action="new-item">새 물품 등록</button></div>
+      <section>
+        <div class="tbl-wrap"><table class="tbl" style="min-width:820px">
+          <thead><tr><th>물품</th><th class="r">현재 재고</th><th class="r">출고 예정</th><th class="r">안전 재고</th><th>상태</th><th></th></tr></thead>
+          <tbody>${itemRows || '<tr><td colspan="6" class="empty">등록된 물품이 없습니다.</td></tr>'}</tbody></table></div>
+        <p class="note">기념품은 출발이 확정되는 순간 예약 인원만큼 자동 출고되고, 예약이 취소되면 반납됩니다. '출고 예정'은 모집 중인 예약이 모두 확정될 때 필요한 수량이며, (현재 재고 − 출고 예정)이 안전 재고 이하이면 입고가 필요합니다.</p>
+      </section>
+      <section>
+        <div class="sec-head"><h2>입출고 이력</h2><span class="label">최근 200건</span></div>
+        <div class="tbl-wrap"><table class="tbl" style="min-width:820px">
+          <thead><tr><th>일시</th><th>물품</th><th>구분</th><th class="r">수량</th><th>내용</th><th>담당</th></tr></thead>
+          <tbody>${moveRows}</tbody></table></div>
+      </section>
+    </div>`;
+  }
+  function stockForm(id, kind) {
+    const i = state.items.find(x => x.id === id);
+    if (!i) return;
+    const isIn = kind === 'in';
+    openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="sf-title">
+      <div class="dialog-head"><h2 id="sf-title">${esc(i.name)} ${isIn ? '입고' : '재고 조정'}</h2><button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button></div>
+      <p class="small muted">현재 재고 ${i.stock}${esc(i.unit)}</p>
+      <form id="stockForm" class="stack" data-id="${i.id}" data-kind="${kind}" novalidate>
+        <label class="fld"><span>${isIn ? '입고 수량' : '조정 수량 (줄이려면 음수)'}</span><input name="qty" type="number" ${isIn ? 'min="1"' : ''} step="1" required data-autofocus></label>
+        <label class="fld"><span>${isIn ? '메모 (선택)' : '조정 사유'}</span><input name="memo" maxlength="100" placeholder="${isIn ? '예) 11월 정기 입고' : '예) 파손 2개 폐기'}"></label>
+        <div class="err" id="form-err" hidden></div>
+        <div class="dialog-foot"><button type="button" class="btn" data-action="close-modal">닫기</button><button type="submit" class="btn btn-primary">${isIn ? '입고 처리' : '조정 처리'}</button></div>
+      </form>
+    </div>`);
+  }
+  function itemForm(id) {
+    const i = id ? state.items.find(x => x.id === id) : null;
+    openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="if-title">
+      <div class="dialog-head"><h2 id="if-title">${i ? '물품 정보 수정' : '새 물품 등록'}</h2><button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button></div>
+      <form id="itemForm" class="stack" data-id="${i ? i.id : ''}" novalidate>
+        <label class="fld"><span>물품명</span><input name="name" value="${i ? esc(i.name) : ''}" maxlength="40" required data-autofocus></label>
+        <label class="fld"><span>단위</span><input name="unit" value="${i ? esc(i.unit) : '개'}" maxlength="10"></label>
+        <label class="fld"><span>안전 재고</span><input name="safety" type="number" min="0" value="${i ? i.safety : 10}"></label>
+        ${i ? '' : '<label class="fld"><span>초기 입고 수량</span><input name="stock" type="number" min="0" value="0"></label>'}
+        <div class="err" id="form-err" hidden></div>
+        <div class="dialog-foot"><button type="button" class="btn" data-action="close-modal">닫기</button><button type="submit" class="btn btn-primary">저장</button></div>
+      </form>
+    </div>`);
+  }
+
+  /* ---------------- 고객 ---------------- */
+  async function viewCustomers() {
+    const list = await api('GET', '/staff/customers');
+    const rows = list.map(c => `<tr>
+      <td>${esc(c.name)}<span class="sub">${esc(c.id)}</span></td>
+      <td>${esc(c.phone)}<span class="sub">${esc(c.address)}</span></td>
+      <td class="num">${esc(c.createdAt)}</td>
+      <td><span class="badge ${c.tier.rate >= 0.1 ? 'st-ok' : c.tier.rate ? 'st-ongoing' : 'st-done'}">${esc(c.tier.name)}</span><span class="sub">완료 여행 ${c.tier.n}회 · 할인 ${Math.round(c.tier.rate * 100)}%</span></td>
+      <td class="r num">${c.bookings}건<span class="sub">최근 ${c.lastTrip ? fmtDate(c.lastTrip) : '–'}</span></td>
+      <td class="r num">${won(c.spent)}</td>
+      <td><button type="button" class="btn btn-sm" data-action="customer-detail" data-id="${esc(c.id)}" data-name="${esc(c.name)}">여행 내역</button></td>
+    </tr>`).join('');
+    return `<div class="view">
+      <div><div class="label">Customers</div><h1>고객 관리</h1></div>
+      <div class="tbl-wrap"><table class="tbl" style="min-width:900px">
+        <thead><tr><th>고객</th><th>연락처 · 주소</th><th>가입일</th><th>회원 등급</th><th class="r">예약</th><th class="r">누적 결제</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">회원이 없습니다.</td></tr>'}</tbody></table></div>
+      <p class="note">단골 할인 기준: 완료된 여행(출발 확정 후 여행 종료) 1–2회 우수 고객 5%, 3회 이상 단골 고객 10%. 예약 신청 시점의 등급으로 자동 할인됩니다.</p>
+    </div>`;
+  }
+  async function showCustomer(id, name) {
+    const list = await attempt(() => api('GET', `/staff/customers/${encodeURIComponent(id)}/bookings`));
+    if (!list) return;
+    const rows = list.length ? list.map(b => `<tr>
+      <td><code>${esc(b.id)}</code></td>
+      <td>${esc(b.themeName)}<span class="sub">${esc(b.destName)} · ${b.pax}명</span></td>
+      <td class="num">${fmtDate(b.date)}<span class="sub">${b.nights}박 ${b.nights + 1}일</span></td>
+      <td>${esc(b.labels.style)}<span class="sub">${esc(b.labels.hotel)} · ${esc(b.labels.meal)} · ${esc(b.labels.vehicle)}</span></td>
+      <td class="r num">${won(b.total)}${b.payment ? `<span class="sub">${esc(b.payment.status)}</span>` : ''}</td>
+      <td><span class="badge st-${b.status.key}">${esc(b.status.label)}</span></td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">여행 내역이 없습니다.</td></tr>';
+    openModal(`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cu-title">
+      <div class="dialog-head"><div><div class="label">Customer</div><h2 id="cu-title">${esc(name)}님의 여행 내역</h2></div><button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button></div>
+      <div class="tbl-wrap"><table class="tbl" style="min-width:760px">
+        <thead><tr><th>예약번호</th><th>상품</th><th>기간</th><th>등급 · 구성</th><th class="r">가격</th><th>상태</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <div class="dialog-foot"><button type="button" class="btn btn-primary" data-action="close-modal">닫기</button></div>
+    </div>`);
+  }
+
+  /* ---------------- 문자 발송 기록 ---------------- */
+  async function viewSms() {
+    const list = await api('GET', '/staff/sms');
+    const KIND = { confirm: ['출발 확정', 'st-ok'], closed: ['운영 취소', 'st-cancel'], booking: ['예약 접수', 'st-ongoing'], cancel: ['예약 취소', 'st-cancel'] };
+    const rows = list.length ? list.map(s => `<tr>
+      <td class="num small">${esc(s.createdAt)}</td>
+      <td>${esc(s.name)}<span class="sub">${esc(s.phone)}</span></td>
+      <td><span class="badge ${KIND[s.kind][1]}">${KIND[s.kind][0]}</span></td>
+      <td>${esc(s.message)}</td>
+      <td class="small ${s.readAt ? 'muted' : 'warn-t'}">${s.readAt ? '확인함' : '미확인'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">발송된 문자가 없습니다.</td></tr>';
+    return `<div class="view">
+      <div><div class="label">SMS Log</div><h1>문자 발송 기록</h1></div>
+      <div class="tbl-wrap"><table class="tbl" style="min-width:860px">
+        <thead><tr><th>발송 일시</th><th>수신자</th><th>구분</th><th>내용</th><th>고객 확인</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <p class="note">실제 문자 발송 대신 기록만 남기는 시뮬레이션입니다. 고객이 로그인하면 확인하지 않은 문자가 고객 화면에 알림으로 표시됩니다. 실제 서비스에서는 이 지점에 문자 발송 API를 연결합니다.</p>
+    </div>`;
+  }
+
+  /* ---------------- 이벤트 처리 ---------------- */
+  const showFormErr = (msg) => { const el = $('#form-err') || modal.querySelector('[data-form-err]'); if (el) { el.textContent = msg; el.hidden = false; } else toast(msg, 'error'); };
+
+  document.addEventListener('submit', async e => {
+    const f = e.target;
+    e.preventDefault();
+    if (f.id === 'loginForm') {
+      const err = $('#login-err');
+      try {
+        const r = await api('POST', '/auth/login', { uid: f.elements.uid.value.trim(), upw: f.elements.upw.value });
+        if (r.user.role !== 'staff') {
+          await api('POST', '/auth/logout');
+          err.textContent = '직원 계정이 아닙니다. 고객은 고객 화면에서 로그인해 주세요.'; err.hidden = false; return;
+        }
+        state.me = r.user;
+        render();
+      } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+    } else if (f.id === 'depForm') {
+      try {
+        await api('POST', '/staff/departures', { theme: f.elements.theme.value, dest: f.elements.dest.value, date: f.elements.date.value, memo: f.elements.memo.value });
+        closeModal(); toast('출발일을 추가했습니다.'); render();
+      } catch (ex) { showFormErr(ex.message); }
+    } else if (f.id === 'stockForm') {
+      try {
+        const r = await api('POST', `/staff/items/${f.dataset.id}/moves`, { kind: f.dataset.kind, qty: Number(f.elements.qty.value), memo: f.elements.memo.value });
+        closeModal(); toast(`처리했습니다. 현재 재고 ${r.stock}`); render();
+      } catch (ex) { showFormErr(ex.message); }
+    } else if (f.id === 'itemForm') {
+      const body = { name: f.elements.name.value, unit: f.elements.unit.value, safety: Number(f.elements.safety.value) };
+      try {
+        if (f.dataset.id) await api('PATCH', `/staff/items/${f.dataset.id}`, body);
+        else await api('POST', '/staff/items', Object.assign(body, { stock: Number(f.elements.stock.value || 0) }));
+        closeModal(); toast('저장했습니다.'); render();
+      } catch (ex) { showFormErr(ex.message); }
+    } else if (f.dataset.themeForm) {
+      const errEl = f.querySelector('[data-form-err]');
+      try {
+        const r = await api('PATCH', `/staff/themes/${encodeURIComponent(f.dataset.themeForm)}`, readThemeForm(f));
+        toast(r.newlyConfirmed ? `저장했습니다. 기준을 만족한 일정 ${r.newlyConfirmed}건이 출발 확정되었습니다.` : '상품 정보를 저장했습니다.');
+        const open = f.dataset.themeForm;
+        await render();
+        const box = document.querySelector(`[data-theme-box="${CSS.escape(open)}"]`);
+        if (box) box.open = true;
+      } catch (ex) { errEl.textContent = ex.message; errEl.hidden = false; }
+    }
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.matches('[data-filter]')) {
+      const el = e.target;
+      state.depFilter[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      render();
+    }
+  });
+
+  document.addEventListener('click', async e => {
+    if (e.target.matches('[data-overlay]')) { closeModal(); return; }
+    const a = e.target.closest('[data-action]');
+    if (!a) return;
+    const id = a.dataset.id;
+    switch (a.dataset.action) {
+      case 'logout':
+        await attempt(() => api('POST', '/auth/logout'));
+        state.me = null; closeModal(); render();
+        break;
+      case 'close-modal': closeModal(); break;
+      case 'dep-detail': showDeparture(Number(id)); break;
+      case 'new-departure': newDepartureForm(); break;
+      case 'cancel-booking':
+        if (!confirm(`예약 ${id}을(를) 취소할까요? 출고된 기념품은 재고로 반납됩니다.`)) break;
+        if (await attempt(() => api('POST', `/staff/bookings/${encodeURIComponent(id)}/cancel`))) { toast('예약을 취소했습니다.'); showDeparture(Number(a.dataset.dep)); render(); }
+        break;
+      case 'ask-close-dep':
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="cd-title">
+          <h2 id="cd-title">출발 일정을 운영 취소할까요?</h2>
+          <p class="small muted">이 일정의 모든 예약이 취소되고, 예약자 전원에게 취소 문자가 발송되며, 출고된 기념품은 재고로 반납됩니다. 되돌릴 수 없습니다.</p>
+          <label class="fld"><span>취소 사유 (문자에 포함)</span><input id="close-memo" maxlength="100" placeholder="예) 현지 기상 악화" data-autofocus></label>
+          <div class="dialog-foot"><button type="button" class="btn" data-action="dep-detail" data-id="${id}">돌아가기</button>
+            <button type="button" class="btn btn-danger" data-action="do-close-dep" data-id="${id}">운영 취소</button></div>
+        </div>`);
+        break;
+      case 'do-close-dep': {
+        const r = await attempt(() => api('POST', `/staff/departures/${id}/close`, { memo: $('#close-memo').value }));
+        if (r) { closeModal(); toast(`출발 일정을 취소했습니다. 예약 ${r.cancelled}건 취소 · 문자 발송`); render(); }
+        break;
+      }
+      case 'save-dest': {
+        const tr = a.closest('tr'), el = n => tr.querySelector(`[name="${n}"]`);
+        if (await attempt(() => api('PATCH', `/staff/destinations/${id}`, { name: el('name').value, region: el('region').value, extra: Number(el('extra').value), active: el('active').checked }))) {
+          toast('여행지를 저장했습니다.');
+          tr.classList.toggle('is-off', !el('active').checked);
+        }
+        break;
+      }
+      case 'add-dest': {
+        const tr = a.closest('tr'), el = n => tr.querySelector(`[name="${n}"]`), theme = a.dataset.theme;
+        if (await attempt(() => api('POST', `/staff/themes/${encodeURIComponent(theme)}/destinations`, { code: el('code').value, name: el('name').value, region: el('region').value, extra: Number(el('extra').value) }))) {
+          toast('여행지를 추가했습니다. 정기 출발 일정이 자동으로 만들어집니다.');
+          await render();
+          const box = document.querySelector(`[data-theme-box="${CSS.escape(theme)}"]`);
+          if (box) box.open = true;
+        }
+        break;
+      }
+      case 'save-prices': {
+        const body = { hotels: {}, meals: {}, vehicles: {}, addons: {} };
+        document.querySelectorAll('[data-price]').forEach(inp => { body[inp.dataset.price][inp.dataset.code] = Number(inp.value); });
+        if (await attempt(() => api('PUT', '/staff/prices', body))) toast('가격표를 저장했습니다. 이후 신청하는 예약부터 적용됩니다.');
+        break;
+      }
+      case 'new-theme': newThemeForm(); break;
+      case 'create-theme': {
+        const form = modal.querySelector('[data-theme-form]');
+        const body = readThemeForm(form);
+        const dn = $('#nt-dest-name').value.trim();
+        try {
+          if (!dn) throw new Error('첫 여행지 이름을 입력해 주세요.');
+          await api('POST', '/staff/themes', body);
+          await api('POST', `/staff/themes/${encodeURIComponent(body.code)}/destinations`, { code: $('#nt-dest-code').value, name: dn, region: $('#nt-dest-region').value, extra: Number($('#nt-dest-extra').value) });
+          closeModal(); toast('새 테마 상품을 만들었습니다.'); render();
+        } catch (ex) { showFormErr(ex.message); }
+        break;
+      }
+      case 'new-item': itemForm(null); break;
+      case 'item-edit': itemForm(Number(id)); break;
+      case 'stock-in': stockForm(Number(id), 'in'); break;
+      case 'stock-adjust': stockForm(Number(id), 'adjust'); break;
+      case 'customer-detail': showCustomer(id, a.dataset.name); break;
+      case 'ask-reset':
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="rs-title">
+          <h2 id="rs-title">데모 데이터를 초기화할까요?</h2>
+          <p class="small muted">모든 회원·예약·재고·문자 기록을 지우고 처음 상태(데모 고객 5명, 직원 1명, 예시 예약)로 되돌립니다. 되돌릴 수 없습니다.</p>
+          <div class="dialog-foot"><button type="button" class="btn" data-action="close-modal" data-autofocus>닫기</button><button type="button" class="btn btn-danger" data-action="do-reset">초기화</button></div>
+        </div>`);
+        break;
+      case 'do-reset':
+        if (await attempt(() => api('POST', '/staff/reset'))) { closeModal(); state.me = null; toast('데모 데이터를 초기화했습니다. 다시 로그인해 주세요.'); render(); }
+        break;
+    }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
