@@ -147,6 +147,16 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
 @media (max-width: 820px) { .info-grid { grid-template-columns: 1fr; } }
 .info-grid .box { display: grid; gap: 6px; align-content: start; font-size: 14px; }
 
+/* Voice (음성으로 상품 찾기) */
+.voice { display: grid; gap: 14px; }
+.voice-row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.voice-status { font-size: 14px; color: var(--muted); min-width: 0; }
+.voice-status.is-on { color: var(--accent); font-weight: 500; }
+.voice-status.is-err { color: var(--danger); }
+.btn.is-listening { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+.voice-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.voice-form .fld { flex: 1 1 260px; }
+
 /* Booking */
 .crumbs { font-size: 13px; color: var(--muted); }
 .crumbs a { color: var(--muted); }
@@ -427,6 +437,126 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
   const depInfo = (theme, dest, date) => (depsFor(theme, dest) || []).find(x => x.date === date) || null;
   const badge = s => `<span class="badge st-${s.key}">${esc(s.label)}</span>`;
 
+  /* ---------------- Voice (음성으로 여행 상품 선택, 고객 인터페이스 2단계) ---------------- */
+  // 브라우저 내장 음성인식(Web Speech API, Chrome·Edge). 없으면 글 입력과 테마 카드로 대체
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const VOICE_OK = !!SR;
+  // 기본 4개 테마의 추가 키워드. 직원이 새로 만든 테마는 테마 이름·여행지 이름으로 찾는다.
+  const VOICE_KEYWORDS = {
+    honeymoon: ['허니문', '신혼', '커플', '배우자', '낭만', '로맨틱', '연인', '아내', '남편', '결혼', '와이프'],
+    parents: ['효도', '부모', '힐링', '어머니', '아버지', '엄마', '아빠', '어르신', '안마', '지압', '인삼'],
+    golf: ['골프', '라운딩', '필드', '티샷'],
+    trekking: ['트레킹', '트래킹', '등산', '아웃도어', '산악', '하이킹', '산행']
+  };
+  const KO_NUM = { 한: 1, 혼자: 1, 두: 2, 둘: 2, 세: 3, 셋: 3, 석: 3, 네: 4, 넷: 4, 다섯: 5, 여섯: 6, 일곱: 7, 여덟: 8, 아홉: 9, 열: 10 };
+  const KO_NIGHT = { 일: 1, 이: 2, 삼: 3, 사: 4, 오: 5, 육: 6, 칠: 7 };
+  const squash = s => String(s).replace(/\s+/g, '').toLowerCase();
+  // 이름에서 검색용 단어 뽑기 (예: '일본 오이타' → 일본, 오이타)
+  const nameWords = s => String(s).split(/[\s·()]+/).filter(w => w.length >= 2).map(squash);
+  let voiceRec = null;       // 진행 중인 음성인식
+  let voiceHandled = false;  // 결과나 오류를 이미 처리했는지
+
+  // 문장 분석: 테마, 여행지, 기간(박), 인원
+  function parseUtterance(text) {
+    const s = squash(text);
+    const scores = {}, destHits = [];
+    Object.values(THEMES).forEach(t => {
+      const words = (VOICE_KEYWORDS[t.id] || []).concat(nameWords(t.name)[0] || [], squash(t.id),
+        nameWords(t.en).filter(w => !['tour', 'travel'].includes(w)));
+      let score = 0, first = Infinity;
+      [...new Set(words)].forEach(w => { const i = s.indexOf(w); if (i !== -1) { score++; first = Math.min(first, i); } });
+      if (score) scores[t.id] = { score, first };
+      t.dests.forEach(d => { if (nameWords(d.name).some(w => s.includes(w))) destHits.push({ theme: t.id, dest: d.id, name: d.name }); });
+    });
+    // 키워드가 가장 많이 나온 테마 (같으면 먼저 말한 테마)
+    let theme = Object.keys(scores).sort((a, b) => scores[b].score - scores[a].score || scores[a].first - scores[b].first)[0] || null;
+    // 테마 없이 여행지만 말했으면, 그 여행지가 한 테마에만 있을 때 그 테마로
+    const destThemes = [...new Set(destHits.map(h => h.theme))];
+    if (!theme && destThemes.length === 1) theme = destThemes[0];
+    const hit = theme && destHits.find(h => h.theme === theme);
+    let nights = null, pax = null, m;
+    if ((m = s.match(/(\d+)박/))) nights = Number(m[1]);
+    else if ((m = s.match(/(일|이|삼|사|오|육|칠)박/))) nights = KO_NIGHT[m[1]];
+    if ((m = s.match(/(\d+)(명|사람|인)/))) pax = Number(m[1]);
+    else if ((m = s.match(/(다섯|여섯|일곱|여덟|아홉|한|두|둘|세|셋|석|네|넷|열)(명|사람|분)/))) pax = KO_NUM[m[1]];
+    else if (s.includes('혼자')) pax = 1;
+    return {
+      theme, dest: hit ? hit.dest : null, nights: NIGHTS.includes(nights) ? nights : null, pax,
+      ambiguousDest: !theme && destThemes.length > 1 ? destHits[0].name : null
+    };
+  }
+  // 음성 상태 문구와 버튼 모양 바꾸기
+  function setVoiceUi(msg, kind) {
+    const st = $('#voice-status'), btn = $('#voice-btn');
+    if (st) { st.textContent = msg; st.className = 'voice-status' + (kind === 'on' ? ' is-on' : kind === 'err' ? ' is-err' : ''); }
+    if (btn) {
+      btn.classList.toggle('is-listening', kind === 'on');
+      btn.textContent = kind === 'on' ? '듣는 중… (누르면 중지)' : '음성으로 말하기';
+    }
+  }
+  // 인식된 문장(후보 여러 개)으로 상품 선택 화면 열기
+  function handleUtterance(candidates) {
+    const list = candidates.map(t => String(t).trim()).filter(Boolean);
+    if (!list.length) { setVoiceUi('말씀을 듣지 못했습니다. 다시 시도해 주세요.', 'err'); return; }
+    let ambiguous = null;
+    for (const text of list) {
+      const r = parseUtterance(text);
+      if (!r.theme) { ambiguous = ambiguous || r.ambiguousDest; continue; }
+      const t = THEMES[r.theme];
+      // 새 예약 초안을 만들고 말한 조건을 미리 채운 뒤 예약 화면으로
+      state.deps = {};
+      state.draft = newDraft(r.theme);
+      state.pay = { method: 'card', bank: '', installment: 0 };
+      if (r.dest) state.draft.dest = r.dest;
+      if (r.nights) state.draft.nights = r.nights;
+      if (r.pax && !t.fixedPax) state.draft.pax = r.pax;
+      normalize(state.draft);
+      const picked = [r.dest && destOf(state.draft).name, r.nights && `${state.draft.nights}박 ${state.draft.nights + 1}일`, r.pax && !t.fixedPax && `${state.draft.pax}명`].filter(Boolean);
+      toast(`<span class="label">Voice</span><span class="small muted">"${esc(text)}"</span><b>${esc(t.name)}${picked.length ? ' · ' + esc(picked.join(' · ')) : ''}</b>`);
+      go('book-' + r.theme);
+      return;
+    }
+    const names = Object.values(THEMES).map(t => t.name.replace(/\s*투어$/, '')).join(', ');
+    setVoiceUi(ambiguous
+      ? `"${list[0]}" — '${ambiguous}' 여행지는 여러 테마에 있습니다. ${names} 중 어떤 여행인지 함께 말씀해 주세요.`
+      : `"${list[0]}"에 맞는 테마를 찾지 못했습니다. ${names} 중에서 말씀해 주세요.`, 'err');
+  }
+  // 음성인식 시작 (듣는 중에 다시 누르면 중지)
+  function startVoice() {
+    if (!VOICE_OK) return;
+    if (voiceRec) { voiceRec.stop(); return; }
+    const rec = new SR();
+    rec.lang = 'ko-KR';
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    voiceHandled = false;
+    rec.onstart = () => setVoiceUi('듣고 있습니다. 원하는 여행을 말씀해 주세요.', 'on');
+    rec.onresult = e => {
+      voiceHandled = true;
+      const res = e.results[e.results.length - 1];
+      handleUtterance(Array.from(res, a => a.transcript));
+    };
+    rec.onerror = e => {
+      voiceHandled = true;
+      const msg = {
+        'not-allowed': '마이크 사용이 허용되지 않았습니다. 주소창의 마이크 권한을 확인하거나, 아래에 글로 입력해 주세요.',
+        'service-not-allowed': '이 환경에서는 음성인식을 쓸 수 없습니다. 아래에 글로 입력해 주세요.',
+        'audio-capture': '마이크를 찾지 못했습니다. 마이크 연결을 확인하거나, 아래에 글로 입력해 주세요.',
+        'network': '음성인식 서버에 연결하지 못했습니다. 인터넷 연결을 확인하거나, 아래에 글로 입력해 주세요.',
+        'no-speech': '말씀을 듣지 못했습니다. 다시 시도해 주세요.',
+        'aborted': '음성인식을 중지했습니다.'
+      }[e.error] || '음성을 인식하지 못했습니다. 아래에 글로 입력해 주세요.';
+      setVoiceUi(msg, e.error === 'aborted' ? '' : 'err');
+    };
+    rec.onend = () => {
+      voiceRec = null;
+      if (!voiceHandled) setVoiceUi('말씀을 듣지 못했습니다. 다시 시도해 주세요.', 'err');
+      else { const btn = $('#voice-btn'); if (btn) { btn.classList.remove('is-listening'); btn.textContent = '음성으로 말하기'; } }
+    };
+    voiceRec = rec;
+    try { rec.start(); } catch (err) { voiceRec = null; setVoiceUi('음성인식을 시작하지 못했습니다. 아래에 글로 입력해 주세요.', 'err'); }
+  }
+
   /* ---------------- Booking draft ---------------- */
   // 테마 선택 시 기본 예약 초안 (그랜드, 3박, 2명)
   function newDraft(themeId) {
@@ -552,6 +682,23 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
           <button type="button" class="btn btn-primary" data-action="scroll" data-target="themes">테마 상품 보기</button>
           ${u ? `<a class="btn" href="#mypage">내 예약 확인</a>` : `<button type="button" class="btn" data-action="demo-login" id="demo-login">데모 계정으로 로그인</button>`}
         </div>
+      </section>
+
+      <section class="box voice" aria-labelledby="voice-title">
+        <div class="sec-head" style="margin-bottom:0"><h2 class="h-sm" id="voice-title">음성으로 상품 찾기</h2><span class="label">Voice Search</span></div>
+        <div class="voice-row">
+          <button type="button" class="btn btn-primary" data-action="voice" id="voice-btn"${VOICE_OK ? '' : ' disabled'}>음성으로 말하기</button>
+          <span class="voice-status" id="voice-status" aria-live="polite">${VOICE_OK
+            ? '버튼을 누르고 원하는 여행을 말씀해 주세요. 여행지·기간·인원도 함께 말하면 미리 골라 드립니다.'
+            : '이 브라우저는 음성인식을 지원하지 않습니다 (Chrome·Edge에서 사용 가능). 아래에 글로 입력하거나 테마 카드를 이용해 주세요.'}</span>
+        </div>
+        <form id="voiceForm" class="voice-form" novalidate>
+          <label class="fld"><span>글로 입력하기</span>
+            <input type="text" id="voice-text" name="vtext" autocomplete="off" placeholder="예) 제주에서 3박 4일 골프 여행 4명">
+          </label>
+          <button type="submit" class="btn" id="voice-submit">찾기</button>
+        </form>
+        <p class="small muted">예) "허니문 여행을 찾고 있어요" · "부모님과 경주 여행 추천해줘" · "골프 여행을 추천해줘" · "친구 다섯 명이랑 트레킹 가고 싶어"</p>
       </section>
 
       <section id="themes">
@@ -1157,6 +1304,12 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
     else if (e.target.id === 'signupForm') { e.preventDefault(); doSignup(e.target); }
     else if (e.target.id === 'bookForm') e.preventDefault();
     else if (e.target.id === 'payForm') { e.preventDefault(); doPay(); }
+    else if (e.target.id === 'voiceForm') {
+      e.preventDefault();
+      const text = e.target.elements.vtext.value.trim();
+      if (!text) { setVoiceUi('찾고 싶은 여행을 입력해 주세요.', 'err'); e.target.elements.vtext.focus(); return; }
+      handleUtterance([text]);
+    }
   });
 
   // 결제 화면: 결제 수단 변경, 카드 번호·유효기간 자동 서식
@@ -1210,6 +1363,7 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
         if (el) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
         break;
       }
+      case 'voice': startVoice(); break;
       case 'demo-login':
         try { const r = await api('POST', '/auth/login', { uid: 'demo', upw: '1234' }); loginAs(r.user); }
         catch (ex) { toast(esc(ex.message)); }
