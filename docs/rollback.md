@@ -17,14 +17,26 @@ Render는 `main` 브랜치에 push되면 자동으로 다시 배포합니다. �
 
 기록이 남고 force push가 필요 없어 팀원 작업과 충돌하지 않습니다.
 
+**PR로 병합한 경우** (`Merge pull request #...` 커밋이 생긴 경우) — 그 병합 커밋 하나만 되돌립니다.
+
 ```bash
 git checkout main
 git pull
-git revert --no-edit fb08dda..HEAD      # 백업 이후의 커밋을 모두 되돌리는 커밋 생성
+git log --oneline -5                      # "Merge pull request #..." 커밋의 해시 확인
+git revert --no-edit -m 1 <병합커밋해시>   # PR 전체를 되돌리는 커밋 생성
 git push origin main                      # Render가 자동으로 재배포
 ```
 
-병합(merge) 커밋이 섞여 있어 `revert`가 실패하면, 파일만 백업 시점으로 되돌려 커밋합니다.
+**PR 없이 main에 바로 올린 경우** — 백업 이후의 커밋을 모두 되돌립니다.
+
+```bash
+git checkout main
+git pull
+git revert --no-edit fb08dda..HEAD
+git push origin main
+```
+
+위 명령이 충돌 등으로 실패하면 (`git revert --abort`로 취소한 뒤), 파일만 백업 시점으로 되돌려 커밋합니다.
 
 ```bash
 git checkout main
