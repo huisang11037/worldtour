@@ -30,6 +30,7 @@ npm start
    (Blueprint 대신 **New → Web Service**로 만들 경우: Build `npm ci`, Start `npm start`, 환경변수 `NODE_VERSION=24`, `TZ=Asia/Seoul`)
 3. 몇 분 뒤 `https://<서비스이름>.onrender.com` 주소가 생깁니다. 직원 화면은 그 주소 뒤에 `/staff`.
 4. 이후 해당 브랜치에 push하면 자동으로 다시 배포됩니다.
+5. 이전 버전으로 되돌리는 방법과 백업 브랜치는 [docs/rollback.md](docs/rollback.md)를 참고하세요.
 
 무료 플랜 주의사항:
 - 15분 동안 접속이 없으면 서버가 잠들고, 다음 접속 때 깨어나는 데 1분 정도 걸립니다. 발표 직전에 한 번 접속해 두세요.
@@ -52,6 +53,7 @@ server/
 test/api.test.js      API 통합 테스트
 render.yaml           Render 배포 설정
 docs/backend.md       ERD, 테이블 정의서, API 명세, 업무 규칙
+docs/rollback.md      배포 백업 브랜치, 롤백 방법
 ```
 
 ## 주요 업무 규칙
