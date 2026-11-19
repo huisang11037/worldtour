@@ -1,0 +1,46 @@
+# main 브랜치에 push되면 테스트를 돌리고, 통과하면 Render에 배포를 요청한다.
+# Render 서비스를 "공개 저장소 URL"로 연결해서 Render 자체 자동 배포를 쓸 수 없기 때문에 Deploy Hook을 사용한다.
+#
+# 준비 (한 번만):
+#   1) Render 서비스 → Settings → Build & Deploy → Branch 를 main 으로 변경
+#   2) Render 서비스 → Settings → Deploy Hook 주소 복사
+#   3) GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret
+#      이름: RENDER_DEPLOY_HOOK_URL / 값: 2)에서 복사한 주소   (저장소 주인만 추가 가능)
+# Deploy Hook 주소는 비밀번호처럼 다룬다. 이 파일이나 코드에 직접 적지 말 것.
+name: Render 자동 배포
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # Actions 탭에서 수동 실행
+
+concurrency:
+  group: render-deploy
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render Deploy Hook 호출
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL secret이 없습니다. 저장소 Settings → Secrets and variables → Actions 에 추가해 주세요."
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
+          echo "Render에 배포를 요청했습니다. 진행 상황은 Render 대시보드 Events 탭에서 확인하세요."

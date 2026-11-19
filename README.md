@@ -29,7 +29,7 @@ npm start
 2. https://dashboard.render.com → **New → Blueprint** → 저장소 선택 → **Apply**. 저장소의 `render.yaml`대로 Node 24 웹 서비스가 만들어집니다.
    (Blueprint 대신 **New → Web Service**로 만들 경우: Build `npm ci`, Start `npm start`, 환경변수 `NODE_VERSION=24`, `TZ=Asia/Seoul`)
 3. 몇 분 뒤 `https://<서비스이름>.onrender.com` 주소가 생깁니다. 직원 화면은 그 주소 뒤에 `/staff`.
-4. 이후 해당 브랜치에 push하면 자동으로 다시 배포됩니다.
+4. **자동 배포:** `main`에 push하면 GitHub Actions가 `npm test`를 돌리고, 통과하면 Render Deploy Hook으로 재배포합니다 ([.github/workflows/render-deploy.yml](.github/workflows/render-deploy.yml)). 처음 한 번 Render의 Branch를 `main`으로 바꾸고, Deploy Hook 주소를 GitHub secret `RENDER_DEPLOY_HOOK_URL`에 등록해야 합니다 (방법은 파일 맨 위 주석).
 5. 이전 버전으로 되돌리는 방법과 백업 브랜치는 [docs/rollback.md](docs/rollback.md)를 참고하세요.
 
 무료 플랜 주의사항:
