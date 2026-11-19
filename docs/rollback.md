@@ -6,12 +6,19 @@ Render는 `main` 브랜치에 push되면 자동으로 다시 배포합니다. �
 
 | 백업 | 커밋 | 내용 |
 |---|---|---|
-| 브랜치 `backup/2026-11-18` | `fb08dda` | 음성 인식·모바일 화면 반영 **전** Render 배포 버전 (PR #1 병합 직후) |
+| 브랜치 `backup/2026-11-18` | `fb08dda` | 음성 인식·모바일 화면 반영 **전** `main` (PR #1 병합 직후) |
+| 브랜치 `backup/backend-2026-11-19` | `d1467d8` | 음성 인식·모바일 화면 반영 **전** `backend` (내용은 위와 같음) |
+
+> **배포 브랜치 주의:** Render 서비스가 `main`이 아니라 `backend` 브랜치를 배포하고 있을 수 있습니다.
+> 그래서 2026-11-19에 `backend`를 `main`과 같은 커밋으로 앞당겼습니다(fast-forward). Render 설정의 Branch를 `main`으로 바꾸기 전까지는
+> **`main`에 반영한 뒤 `backend`도 같이 올려야** 사이트에 적용됩니다: `git push origin main:backend`
 
 > 백업 브랜치는 지우거나 push하지 마세요. 새 백업이 필요하면 `backup/날짜` 이름으로 브랜치를 하나 더 만듭니다.
 > `git branch backup/2026-12-01 main && git push origin backup/2026-12-01`
 
 ## 롤백 방법
+
+아래 방법으로 `main`을 되돌린 뒤, Render가 아직 `backend`를 배포 중이면 `git push origin main:backend`로 `backend`에도 올립니다.
 
 ### 방법 1. 변경 되돌리기 커밋 (추천)
 
