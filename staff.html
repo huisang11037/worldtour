@@ -4,8 +4,8 @@
 <script>
 /* 배경 색상 팔레트: sky(흰색) · mist · sage · sand · night — 기기에 저장 */
 (function(){
-  var KEY='mw_palette', ALL=['sky','mist','sage','sand','night','aurora','sunset','ocean','garden'];
-  function get(){ try{ var v=localStorage.getItem(KEY); return ALL.indexOf(v)>=0?v:'aurora'; }catch(e){ return 'aurora'; } }
+  var KEY='mw_palette', ALL=['sky','mist','sage','sand','night','cobalt','forest','coral','lilac'];
+  function get(){ try{ var v=localStorage.getItem(KEY); return ALL.indexOf(v)>=0?v:'cobalt'; }catch(e){ return 'cobalt'; } }
   function apply(p){ var r=document.documentElement; if(p==='sky') r.removeAttribute('data-palette'); else r.setAttribute('data-palette',p);
     var bs=document.querySelectorAll('[data-pal]'); for(var i=0;i<bs.length;i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-pal')===p?'true':'false'); }
   window.__mwPalApply=function(){ apply(get()); };
@@ -281,50 +281,55 @@ html[data-palette] .tbl th { background: var(--surface); }
 html[data-palette] .tbl th, html[data-palette] .tbl td { border-bottom-color: var(--line); }
 html[data-palette] .bar { background: var(--surface); }
 html[data-palette] .form-box { box-shadow: 0 8px 30px var(--shadow); }
-/* ===== 그라데이션·패턴 배경 (단색이 아닌 바리에이션) ===== */
-html[data-palette="aurora"] {
-  --page: #eaf1f8; --head: rgba(238, 244, 251, 0.72); --bg: #ffffff; --surface: #f2f6fb; --sky: #dde9fb;
-  --line: #dde5ef; --strong: #ccd8e6; --line-soft: #cddcf0; --pick: #f5f9ff; --info1: #e6f4ee; --info2: #f9eee0;
-  --page-img: radial-gradient(55% 45% at 0% 0%, #cfe2ff 0%, transparent 70%), radial-gradient(45% 40% at 100% 8%, #d2f2e8 0%, transparent 70%), radial-gradient(55% 45% at 75% 100%, #e4dcff 0%, transparent 70%), linear-gradient(180deg, #eef4fb, #f3f1fb);
-  --hero-img: radial-gradient(60% 90% at 100% 0%, rgba(255, 255, 255, 0.7), transparent 60%), linear-gradient(130deg, #d6e6ff 0%, #d5f2e9 55%, #e6ddff 100%);
+/* ===== 투톤·컬러 블록 배경 (그라데이션 없이 단색 여러 겹으로 변화) ===== */
+html[data-palette="cobalt"] {
+  --page: #e8eff8; --head: #ffffff; --bg: #ffffff; --surface: #f1f5fb; --sky: #dbe7f7;
+  --line: #d9e2ee; --strong: #c7d4e5; --line-soft: #c9d8ec; --pick: #eaf2ff; --info1: #dff3ea; --info2: #fff1cc; --info3: #e6e1fb;
+  --hero: #1d4f91; --hero-ink: #ffffff; --hero-sub: #d6e4f7; --foot: #0f2747; --foot-ink: #b7c7dd;
+  --side: #0f2747; --side-ink: #ffffff; --side-sub: #9fb3cf; --side-hover: #1a3760; --side-active: #2a4f86; --mark: #ffffff; --mark-ink: #1d4f91;
 }
-html[data-palette="sunset"] {
-  --page: #fbf1ec; --head: rgba(253, 245, 241, 0.72); --bg: #fffbfa; --surface: #fdf3f2; --sky: #fbe1e4;
-  --fg: #2a1720; --body: #4d3540; --muted: #7d6470; --line: #f0dfe2; --strong: #e5cdd3; --line-soft: #efd0d9;
-  --accent: #b23a62; --accent-ink: #8c2a4b; --accent-weak: #fbe3ea; --hint: #5a3f4a; --pick: #fff5f6;
-  --info1: #eef3e8; --info2: #fde9dc; --mic-hover: #f6d0dc; --glow: rgba(178, 58, 98, 0.2); --shadow: rgba(42, 23, 32, 0.1);
-  --page-img: radial-gradient(50% 45% at 0% 0%, #ffe0cc 0%, transparent 70%), radial-gradient(45% 40% at 100% 5%, #ffd6e2 0%, transparent 70%), radial-gradient(60% 45% at 50% 100%, #e9dcf7 0%, transparent 70%), linear-gradient(180deg, #fff5ef, #f8eff8);
-  --hero-img: radial-gradient(50% 80% at 90% 10%, rgba(255, 255, 255, 0.65), transparent 60%), linear-gradient(120deg, #ffe1cd 0%, #ffd3e0 50%, #e5d9fa 100%);
+html[data-palette="forest"] {
+  --page: #eef2ec; --head: #fbfcfa; --bg: #fdfefc; --surface: #f0f4ee; --sky: #dce8dc;
+  --fg: #14201a; --body: #34443b; --muted: #5d6e64; --line: #d8e2d8; --strong: #c4d2c5; --line-soft: #c6d9cb;
+  --accent: #2f6b4f; --accent-ink: #24543e; --accent-weak: #dfeee4; --hint: #3c4c43; --pick: #e4f1e8;
+  --info1: #f6ecd2; --info2: #e1ecf4; --info3: #f3e1d6; --mic-hover: #cfe5d6; --glow: rgba(47, 107, 79, 0.2); --shadow: rgba(20, 32, 26, 0.1);
+  --hero: #24543e; --hero-ink: #ffffff; --hero-sub: #d3e6da; --foot: #1b2e24; --foot-ink: #b5c8bb;
+  --side: #1b2e24; --side-ink: #ffffff; --side-sub: #9bb3a3; --side-hover: #263f32; --side-active: #335a46; --mark: #f6ecd2; --mark-ink: #24543e;
 }
-html[data-palette="ocean"] {
-  --page: #e8f2f8; --head: rgba(236, 245, 250, 0.75); --bg: #ffffff; --surface: #f0f6fa; --sky: #d8eaf6;
-  --fg: #0d1b2a; --body: #2f4255; --muted: #5a6f83; --line: #d9e6ef; --strong: #c5d7e4; --line-soft: #c5dbea;
-  --accent: #0b63b6; --accent-ink: #0a4a87; --accent-weak: #dcebf8; --pick: #f3f9fd; --info1: #e1f3f0; --info2: #f8eedf;
-  --mic-hover: #c9e0f4; --glow: rgba(11, 99, 182, 0.22);
-  --page-img: radial-gradient(60% 40% at 100% 0%, #c9ecf2 0%, transparent 70%), radial-gradient(50% 40% at 0% 60%, #d6e6fa 0%, transparent 70%), linear-gradient(180deg, #dcebf6 0%, #eaf4f7 45%, #f2f6f1 100%);
-  --hero-img: radial-gradient(70% 120% at 100% 0%, rgba(56, 189, 248, 0.45), transparent 60%), radial-gradient(50% 80% at 0% 100%, rgba(45, 212, 191, 0.3), transparent 60%), linear-gradient(135deg, #0c2f57 0%, #124a80 55%, #0f5f78 100%);
+html[data-palette="coral"] {
+  --page: #faf5ee; --head: #fffdf9; --bg: #fffdf9; --surface: #f7f0e7; --sky: #f6ddd0;
+  --fg: #2a1d17; --body: #4c3a31; --muted: #7a675c; --line: #ecdfd2; --strong: #dfcdbd; --line-soft: #e7d2c3;
+  --accent: #c2410c; --accent-ink: #9a3412; --accent-weak: #fde3d4; --hint: #54423a; --pick: #fff1e8;
+  --info1: #e4efe1; --info2: #fbe7a8; --info3: #f6ddd0; --mic-hover: #f9cfb8; --glow: rgba(194, 65, 12, 0.2); --shadow: rgba(42, 29, 23, 0.1);
+  --hero: #f6ddd0; --hero-ink: #2a1d17; --hero-sub: #5a463c; --foot: #2b2320; --foot-ink: #c9b9ad;
+  --side: #f6ddd0; --side-ink: #2a1d17; --side-sub: #7a5e50; --side-hover: #f1cfbe; --side-active: #ffffff; --mark: #c2410c; --mark-ink: #ffffff;
 }
-html[data-palette="garden"] {
-  --page: #edf3ee; --head: rgba(238, 244, 239, 0.75); --bg: #fcfdfb; --surface: #eff5f0; --sky: #dae9de;
-  --fg: #14201a; --body: #34443b; --muted: #5d6e64; --line: #d8e3db; --strong: #c5d4c9; --line-soft: #c6d9cb;
-  --accent: #2f6b4f; --accent-ink: #24543e; --accent-weak: #dfeee4; --hint: #3c4c43; --pick: #f4f9f5;
-  --info1: #e3efe6; --info2: #f6eedf; --mic-hover: #cfe5d6; --glow: rgba(47, 107, 79, 0.2); --shadow: rgba(20, 32, 26, 0.1);
-  --page-img: radial-gradient(circle at 1px 1px, rgba(47, 107, 79, 0.13) 1.2px, transparent 1.6px) 0 0 / 22px 22px, radial-gradient(55% 45% at 100% 0%, #d4ebdc 0%, transparent 70%), radial-gradient(50% 45% at 0% 100%, #efe7cf 0%, transparent 70%), linear-gradient(180deg, #eef4ef, #f4f2e9);
-  --hero-img: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.5) 1.2px, transparent 1.6px) 0 0 / 18px 18px, linear-gradient(135deg, #d3e8d9 0%, #e5eed6 60%, #f0e8d3 100%);
+html[data-palette="lilac"] {
+  --page: #f1eff9; --head: #fdfcff; --bg: #ffffff; --surface: #f5f3fb; --sky: #fff1c7;
+  --fg: #1f1a33; --body: #3e3757; --muted: #6b6485; --line: #e3dff0; --strong: #d1cbe6; --line-soft: #d6cff0;
+  --accent: #5b3fb3; --accent-ink: #46308c; --accent-weak: #e9e3fb; --hint: #4a4366; --pick: #f3efff;
+  --info1: #dff1ea; --info2: #fff1c7; --info3: #e9e3fb; --mic-hover: #ddd3f8; --glow: rgba(91, 63, 179, 0.2); --shadow: rgba(31, 26, 51, 0.1);
+  --hero: #fff1c7; --hero-ink: #1f1a33; --hero-sub: #4f4733; --foot: #2a2440; --foot-ink: #bdb5d6;
+  --side: #2a2440; --side-ink: #ffffff; --side-sub: #a99fcb; --side-hover: #373052; --side-active: #4b3f78; --mark: #fff1c7; --mark-ink: #46308c;
 }
-/* 배경 그림은 화면에 고정된 한 겹으로 깔아 스크롤해도 끊기지 않게 한다 */
-html[data-palette="aurora"], html[data-palette="sunset"], html[data-palette="ocean"], html[data-palette="garden"] { background: var(--page); }
-html[data-palette="aurora"] body, html[data-palette="sunset"] body, html[data-palette="ocean"] body, html[data-palette="garden"] body { background: transparent; }
-html[data-palette="aurora"] body::after, html[data-palette="sunset"] body::after, html[data-palette="ocean"] body::after, html[data-palette="garden"] body::after {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--page-img); }
-html[data-palette="aurora"] .site-foot, html[data-palette="sunset"] .site-foot, html[data-palette="ocean"] .site-foot, html[data-palette="garden"] .site-foot { background: rgba(255, 255, 255, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 @media (min-width: 1024px) {
-  html[data-palette="aurora"] body::after, html[data-palette="sunset"] body::after, html[data-palette="ocean"] body::after, html[data-palette="garden"] body::after {
-    background: linear-gradient(to right, rgba(255, 255, 255, 0.7) 248px, transparent 248px), var(--page-img); }
-  html[data-palette="aurora"] .site-head, html[data-palette="sunset"] .site-head, html[data-palette="ocean"] .site-head, html[data-palette="garden"] .site-head { background: transparent; }
+  html[data-palette="cobalt"] body, html[data-palette="forest"] body, html[data-palette="coral"] body, html[data-palette="lilac"] body { background: linear-gradient(to right, var(--side) 248px, var(--page) 248px); }
+  html[data-palette="cobalt"] .site-head, html[data-palette="forest"] .site-head, html[data-palette="coral"] .site-head, html[data-palette="lilac"] .site-head { box-shadow: none; }
+  html[data-palette="cobalt"] .site-head .logo, html[data-palette="forest"] .site-head .logo, html[data-palette="coral"] .site-head .logo, html[data-palette="lilac"] .site-head .logo { color: var(--side-ink); }
+  html[data-palette="cobalt"] .logo-text span, html[data-palette="forest"] .logo-text span, html[data-palette="coral"] .logo-text span, html[data-palette="lilac"] .logo-text span { color: var(--side-sub); }
+  html[data-palette="cobalt"] .logo-mark, html[data-palette="forest"] .logo-mark, html[data-palette="coral"] .logo-mark, html[data-palette="lilac"] .logo-mark { background: var(--mark); color: var(--mark-ink); }
+  html[data-palette="cobalt"] #userbox, html[data-palette="forest"] #userbox, html[data-palette="coral"] #userbox, html[data-palette="lilac"] #userbox { background: var(--side-hover); color: var(--side-ink); }
+  html[data-palette="cobalt"] #userbox .muted, html[data-palette="forest"] #userbox .muted, html[data-palette="coral"] #userbox .muted, html[data-palette="lilac"] #userbox .muted, html[data-palette="cobalt"] #userbox span, html[data-palette="forest"] #userbox span, html[data-palette="coral"] #userbox span, html[data-palette="lilac"] #userbox span { color: var(--side-sub); }
+  html[data-palette="cobalt"] .tabs a, html[data-palette="forest"] .tabs a, html[data-palette="coral"] .tabs a, html[data-palette="lilac"] .tabs a { color: var(--side-sub); }
+  html[data-palette="cobalt"] .tabs a:hover, html[data-palette="forest"] .tabs a:hover, html[data-palette="coral"] .tabs a:hover, html[data-palette="lilac"] .tabs a:hover { background: var(--side-hover); color: var(--side-ink); }
+  html[data-palette="cobalt"] .tabs a.is-active, html[data-palette="forest"] .tabs a.is-active, html[data-palette="coral"] .tabs a.is-active, html[data-palette="lilac"] .tabs a.is-active { background: var(--side-active); color: var(--side-ink); }
+  html[data-palette="coral"] .tabs a.is-active { color: var(--accent-ink); }
 }
-html[data-palette="aurora"] .box, html[data-palette="sunset"] .box, html[data-palette="ocean"] .box, html[data-palette="garden"] .box, html[data-palette="aurora"] .kpi, html[data-palette="sunset"] .kpi, html[data-palette="ocean"] .kpi, html[data-palette="garden"] .kpi { box-shadow: 0 10px 30px -18px var(--shadow); }
-.palette .pal-sep { width: 1px; height: 18px; background: var(--strong); margin: 0 4px; }
+html[data-palette="cobalt"] .kpi, html[data-palette="forest"] .kpi, html[data-palette="coral"] .kpi, html[data-palette="lilac"] .kpi { border-top: 4px solid var(--accent); }
+html[data-palette="cobalt"] .kpi:nth-child(2), html[data-palette="forest"] .kpi:nth-child(2), html[data-palette="coral"] .kpi:nth-child(2), html[data-palette="lilac"] .kpi:nth-child(2) { border-top-color: var(--ok); }
+html[data-palette="cobalt"] .kpi:nth-child(3), html[data-palette="forest"] .kpi:nth-child(3), html[data-palette="coral"] .kpi:nth-child(3), html[data-palette="lilac"] .kpi:nth-child(3) { border-top-color: #e0a030; }
+html[data-palette="cobalt"] .kpi:nth-child(4), html[data-palette="forest"] .kpi:nth-child(4), html[data-palette="coral"] .kpi:nth-child(4), html[data-palette="lilac"] .kpi:nth-child(4) { border-top-color: var(--hero, var(--accent)); }
+.palette .pal-sep { width: 1px; height: 18px; background: currentColor; opacity: 0.35; margin: 0 4px; }
 </style>
 </head>
 <body>
@@ -356,10 +361,10 @@ html[data-palette="aurora"] .box, html[data-palette="sunset"] .box, html[data-pa
       <button type="button" data-pal="sand" style="--sw:#eadcc6" aria-label="샌드 베이지" title="샌드 베이지"></button>
       <button type="button" data-pal="night" style="--sw:#17243a" aria-label="나이트 네이비" title="나이트 네이비"></button>
       <i class="pal-sep" aria-hidden="true"></i>
-      <button type="button" data-pal="aurora" style="--sw:linear-gradient(135deg,#cfe2ff,#d2f2e8,#e4dcff)" aria-label="오로라 그라데이션" title="오로라 그라데이션"></button>
-      <button type="button" data-pal="sunset" style="--sw:linear-gradient(135deg,#ffe0cc,#ffd3e0,#e5d9fa)" aria-label="선셋 그라데이션" title="선셋 그라데이션"></button>
-      <button type="button" data-pal="ocean" style="--sw:linear-gradient(135deg,#0c2f57,#124a80,#38bdf8)" aria-label="오션 (짙은 히어로)" title="오션 (짙은 히어로)"></button>
-      <button type="button" data-pal="garden" style="--sw:radial-gradient(circle at 3px 3px,#2f6b4f55 1.5px,transparent 2px) 0 0/7px 7px,linear-gradient(135deg,#d3e8d9,#f0e8d3)" aria-label="가든 (도트 패턴)" title="가든 (도트 패턴)"></button>
+      <button type="button" data-pal="cobalt" style="--sw:#1d4f91;box-shadow:inset -13px 0 0 #e8eff8,0 0 0 1px #c7d4e5" aria-label="코발트 투톤" title="코발트 투톤"></button>
+      <button type="button" data-pal="forest" style="--sw:#24543e;box-shadow:inset -13px 0 0 #f6ecd2,0 0 0 1px #c4d2c5" aria-label="포레스트 투톤" title="포레스트 투톤"></button>
+      <button type="button" data-pal="coral" style="--sw:#f6ddd0;box-shadow:inset -13px 0 0 #2b2320,0 0 0 1px #dfcdbd" aria-label="코랄 & 크림" title="코랄 & 크림"></button>
+      <button type="button" data-pal="lilac" style="--sw:#fff1c7;box-shadow:inset -13px 0 0 #2a2440,0 0 0 1px #d1cbe6" aria-label="라일락 & 버터" title="라일락 & 버터"></button>
     </span><script>window.__mwPalApply && window.__mwPalApply();</script>
     <button type="button" class="btn btn-sm" data-action="ask-reset" id="reset-btn" hidden>데모 데이터 초기화</button>
   </div>
