@@ -1,20 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<script>
-/* 배경 색상 팔레트: sky(흰색) · mist · sage · sand · night — 기기에 저장 */
-(function(){
-  var KEY='mw_palette', ALL=['sky','mist','sage','sand','night','cobalt','forest','coral','lilac','voyage','dusk','flight'];
-  function get(){ try{ var v=localStorage.getItem(KEY); return ALL.indexOf(v)>=0?v:'voyage'; }catch(e){ return 'voyage'; } }
-  function apply(p){ var r=document.documentElement; if(p==='sky') r.removeAttribute('data-palette'); else r.setAttribute('data-palette',p);
-    var bs=document.querySelectorAll('[data-pal]'); for(var i=0;i<bs.length;i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-pal')===p?'true':'false'); }
-  window.__mwPalApply=function(){ apply(get()); };
-  apply(get());
-  document.addEventListener('DOMContentLoaded', function(){ apply(get()); });
-  document.addEventListener('click', function(e){ var b=e.target.closest&&e.target.closest('[data-pal]'); if(!b) return;
-    var p=b.getAttribute('data-pal'); try{ localStorage.setItem(KEY,p); }catch(err){} apply(p); });
-})();
-</script>
+<script>document.documentElement.setAttribute('data-palette', 'dusk'); /* 노을 여행 테마 고정 */</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>미스터 월드 직원 포털</title>
@@ -386,22 +373,6 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
 <footer class="site-foot">
   <div class="wrap">
     <span>미스터 월드 테마 여행 서비스 · 직원 인터페이스 · <a href="/">고객 화면으로</a></span>
-    <span class="palette" role="group" aria-label="배경 색상">배경
-      <button type="button" data-pal="sky" style="--sw:#ffffff" aria-label="화이트" title="화이트"></button>
-      <button type="button" data-pal="mist" style="--sw:#d9e6f5" aria-label="미스트 블루" title="미스트 블루"></button>
-      <button type="button" data-pal="sage" style="--sw:#cfe2d4" aria-label="세이지 그린" title="세이지 그린"></button>
-      <button type="button" data-pal="sand" style="--sw:#eadcc6" aria-label="샌드 베이지" title="샌드 베이지"></button>
-      <button type="button" data-pal="night" style="--sw:#17243a" aria-label="나이트 네이비" title="나이트 네이비"></button>
-      <i class="pal-sep" aria-hidden="true"></i>
-      <button type="button" data-pal="cobalt" style="--sw:#1d4f91;box-shadow:inset -13px 0 0 #e8eff8,0 0 0 1px #c7d4e5" aria-label="코발트 투톤" title="코발트 투톤"></button>
-      <button type="button" data-pal="forest" style="--sw:#24543e;box-shadow:inset -13px 0 0 #f6ecd2,0 0 0 1px #c4d2c5" aria-label="포레스트 투톤" title="포레스트 투톤"></button>
-      <button type="button" data-pal="coral" style="--sw:#f6ddd0;box-shadow:inset -13px 0 0 #2b2320,0 0 0 1px #dfcdbd" aria-label="코랄 & 크림" title="코랄 & 크림"></button>
-      <button type="button" data-pal="lilac" style="--sw:#fff1c7;box-shadow:inset -13px 0 0 #2a2440,0 0 0 1px #d1cbe6" aria-label="라일락 & 버터" title="라일락 & 버터"></button>
-      <i class="pal-sep" aria-hidden="true"></i>
-      <button type="button" data-pal="voyage" style="--sw:#cfe6f5;box-shadow:inset 0 -9px 0 #2f80c0,0 0 0 1px #c8d6e3" aria-label="트래블 블루" title="트래블 블루"></button>
-      <button type="button" data-pal="dusk" style="--sw:#ffd9b8;box-shadow:inset 0 -9px 0 #c9786a,0 0 0 1px #c8d6e3" aria-label="노을 여행" title="노을 여행"></button>
-      <button type="button" data-pal="flight" style="--sw:#1b2a4a;box-shadow:inset 0 -9px 0 #f6e7b0,0 0 0 1px #c8d6e3" aria-label="야간 비행" title="야간 비행"></button>
-    </span><script>window.__mwPalApply && window.__mwPalApply();</script>
     <button type="button" class="btn btn-sm" data-action="ask-reset" id="reset-btn" hidden>데모 데이터 초기화</button>
   </div>
 </footer>
