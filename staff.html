@@ -6,7 +6,7 @@
 <title>미스터 월드 직원 포털</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=Outfit:wght@500;600;700&display=swap">
 <style>
 /* 고객 화면(index.html)과 같은 디자인 토큰을 사용한다 */
 :root {
@@ -18,22 +18,7 @@
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --r: 2px;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
-    --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
-    --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70; --danger-weak: #2e1514;
-    --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #111317; --surface: #1a1d23; --fg: #e7e9ee; --muted: #9aa1ad; --line: #363b45; --strong: #e7e9ee;
-  --accent: #84a0ff; --accent-weak: #1c2442; --on-accent: #0c1022;
-  --ok: #55c990; --ok-weak: #132a1f; --warn: #e3a748; --warn-weak: #2b2312; --danger: #ff7b70; --danger-weak: #2e1514;
-  --scrim: rgba(0, 0, 0, 0.62); --shadow: rgba(0, 0, 0, 0.5);
-  color-scheme: dark;
-}
+/* 밝은 테마 전용: 기기가 다크 모드여도 밝은 화면 (다크 모드 색상 제거) */
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.6; }
 a { color: var(--accent); }
@@ -157,12 +142,96 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
 .x { border: 0; background: none; color: var(--muted); font: inherit; font-size: 20px; line-height: 1; padding: 2px 4px; cursor: pointer; }
 .site-foot { border-top: 1px solid var(--line); }
 .site-foot .wrap { padding-block: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+
+/* ===== 밝은 스카이 블루 테마 (고객 화면 시안 A와 같은 색·글꼴) — 위 기본 스타일 위에 덮어씀 ===== */
+:root {
+  --bg: #ffffff; --page: #f6f8fb; --surface: #f3f6fa; --sky: #eef5ff; --fg: #0f172a; --body: #334155; --muted: #5b6b80; --line: #e6ecf3; --strong: #d5dee9;
+  --accent: #1d63c9; --accent-ink: #1d4f91; --accent-weak: #e3eefd; --on-accent: #ffffff;
+  --ok: #17794a; --ok-weak: #e8f5ec; --warn: #8a4b0b; --warn-weak: #fdf1de; --danger: #b42318; --danger-weak: #fdecec;
+  --scrim: rgba(15, 23, 42, 0.45); --shadow: rgba(15, 23, 42, 0.12);
+  --font-sans: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "Outfit", "Noto Sans KR", system-ui, sans-serif;
+  --r: 12px; --r-lg: 18px;
+  color-scheme: light;
+}
+body { background: var(--page); word-break: keep-all; overflow-wrap: anywhere; }
+h1 { font-size: clamp(24px, 3vw, 30px); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 20px; font-weight: 800; }
+.label { font-weight: 600; font-size: 12px; letter-spacing: 0.12em; color: var(--accent-ink); }
+.box { border-color: var(--line); border-radius: var(--r-lg); padding: 20px; }
+.sec-head { border-bottom: 0; padding-bottom: 0; margin-bottom: 12px; align-items: flex-end; }
+code { border: 0; border-radius: 6px; padding: 1px 6px; color: var(--body); }
+.btn { border-color: var(--strong); border-radius: var(--r); padding: 9px 15px; font-weight: 700; min-height: 40px; }
+.btn-primary { border-color: var(--accent); }
+.btn-sm { padding: 5px 11px; font-size: 13px; min-height: 32px; border-radius: 10px; }
+.btn-danger { background: var(--bg); }
+.badge { border: 0; padding: 2px 10px; font-weight: 700; }
+.st-done { background: var(--surface); }
+.st-cancel, .st-closed { background: var(--danger-weak); }
+.chip { border: 0; background: var(--surface); color: var(--body); border-radius: 8px; padding: 3px 10px; font-size: 13px; }
+.tbl-wrap { border-color: var(--line); border-radius: var(--r-lg); background: var(--bg); }
+.tbl th { background: #f8fafc; font-size: 13px; padding-block: 11px; }
+.tbl th, .tbl td { border-bottom-color: #eef2f6; padding-inline: 14px; }
+.tbl input, .tbl select { border-color: var(--strong); border-radius: 8px; padding: 6px 8px; }
+.fld input, .fld select, .fld textarea { border-color: var(--strong); padding: 9px 11px; }
+.kpis { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .kpi { padding: 14px; } .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+.kpi { background: var(--bg); border-color: var(--line); border-radius: var(--r-lg); padding: 18px 20px; gap: 6px; min-width: 0; }
+.kpi .label { color: var(--muted); letter-spacing: 0; font-family: var(--font-sans); font-weight: 500; font-size: 14px; text-transform: none; }
+.kpi b { font-family: var(--font-mono); font-size: clamp(20px, 1.7vw, 26px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert { border: 0; border-radius: 16px; padding: 14px 16px; gap: 6px; color: var(--body); }
+.alert b { color: var(--warn); }
+.alert.danger b { color: var(--danger); }
+.alert.ok b, .alert.ok { color: var(--ok); }
+.bar { height: 8px; border: 0; border-radius: 999px; background: #eef2f6; overflow: hidden; }
+.bar i { background: #e0a030; border-radius: 999px; }
+.theme-box summary h3 { font-size: 18px; font-weight: 800; }
+.theme-box.is-off { opacity: 0.75; }
+.demo-hint { border: 0; border-radius: var(--r); background: var(--sky); }
+.form-box { border: 0; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06); }
+.dialog { border: 0; border-radius: 24px; padding: 26px; }
+.toast { border: 0; border-radius: 14px; }
+.toast.error { box-shadow: 0 0 0 2px var(--danger), 0 8px 24px var(--shadow); }
+
+/* 머리말: 로고 */
+.site-head { border-bottom: 1px solid var(--line); }
+.logo-mark { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none; }
+.logo-text { display: grid; line-height: 1.25; }
+.logo-text b { font-family: var(--font-mono); font-weight: 700; font-size: 18px; letter-spacing: 0.01em; }
+.logo-text span { font-size: 12px; color: var(--muted); }
+.who { color: var(--muted); }
+
+/* 휴대폰·태블릿: 위쪽 메뉴를 알약 모양 탭으로 */
+.tabs { border-bottom: 1px solid var(--line); }
+.tabs .wrap { gap: 6px; padding-block: 8px; }
+.tabs a { border: 0; border-radius: 999px; padding: 8px 14px; color: var(--body); font-weight: 500; }
+.tabs a.is-active { background: var(--accent-weak); color: var(--accent-ink); font-weight: 700; }
+
+/* 넓은 화면: 왼쪽 메뉴(사이드바) + 오른쪽 내용 */
+@media (min-width: 1024px) {
+  body { display: grid; grid-template-columns: 248px minmax(0, 1fr); grid-template-rows: auto 1fr auto; min-height: 100vh;
+    background: linear-gradient(to right, var(--bg) 248px, var(--page) 248px); }
+  .site-head { grid-column: 1; grid-row: 1; position: static; border-bottom: 0; box-shadow: inset -1px 0 0 var(--line); background: transparent; }
+  .site-head .wrap { flex-direction: column; align-items: stretch; gap: 14px; padding: 22px 16px 10px; max-width: none; }
+  #userbox { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface); }
+  #userbox .btn { width: 100%; }
+  .tabs { grid-column: 1; grid-row: 2 / span 2; position: sticky; top: 0; align-self: start; border-bottom: 0; background: transparent; }
+  .tabs .wrap { flex-direction: column; gap: 4px; padding: 6px 16px 24px; overflow: visible; max-width: none; }
+  .tabs a { border-radius: 12px; padding: 11px 12px; font-size: 15px; }
+  body > main#app { grid-column: 2; grid-row: 1 / span 2; width: 100%; max-width: 1280px; padding: 32px 36px 56px; margin: 0; }
+  .site-foot { grid-column: 2; grid-row: 3; border-top: 0; }
+  .site-foot .wrap { max-width: 1280px; margin: 0; padding-inline: 36px; }
+  .tabs[hidden] + main#app { grid-row: 1 / span 2; }
+}
 </style>
 </head>
 <body>
 <header class="site-head">
   <div class="wrap">
-    <a class="logo" href="#dash"><b>MR. WORLD</b><span class="proto">Staff</span></a>
+    <a class="logo" href="#dash">
+      <span class="logo-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg></span>
+      <span class="logo-text"><b>Mr. World</b><span>직원 포털</span></span>
+    </a>
     <div class="row" id="userbox"></div>
   </div>
 </header>
