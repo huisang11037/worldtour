@@ -1,4 +1,18 @@
 <meta charset="utf-8">
+<script>
+/* 배경 색상 팔레트: sky(흰색) · mist · sage · sand · night — 기기에 저장 */
+(function(){
+  var KEY='mw_palette', ALL=['sky','mist','sage','sand','night'];
+  function get(){ try{ var v=localStorage.getItem(KEY); return ALL.indexOf(v)>=0?v:'mist'; }catch(e){ return 'mist'; } }
+  function apply(p){ var r=document.documentElement; if(p==='sky') r.removeAttribute('data-palette'); else r.setAttribute('data-palette',p);
+    var bs=document.querySelectorAll('[data-pal]'); for(var i=0;i<bs.length;i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-pal')===p?'true':'false'); }
+  window.__mwPalApply=function(){ apply(get()); };
+  apply(get());
+  document.addEventListener('DOMContentLoaded', function(){ apply(get()); });
+  document.addEventListener('click', function(e){ var b=e.target.closest&&e.target.closest('[data-pal]'); if(!b) return;
+    var p=b.getAttribute('data-pal'); try{ localStorage.setItem(KEY,p); }catch(err){} apply(p); });
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>미스터 월드 테마투어</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -390,6 +404,49 @@ h2 { font-weight: 800; letter-spacing: -0.01em; }
 .site-foot .wrap { font-size: 13px; padding-block: 26px; }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+/* ===== 배경 색상 팔레트 (흰 배경 대신 은은한 색 배경) ===== */
+:root { --page: var(--bg); --head: var(--bg); --line-soft: #d5e3f5; --hint: #3b4a5e; --pick: #f7faff; --info1: #f3f8f5; --info2: #fff6e9; --mic-hover: #d4e4fb; --glow: rgba(29, 99, 201, 0.18); }
+html[data-palette="mist"] {
+  --page: #e9eff6; --head: rgba(233, 239, 246, 0.92); --bg: #ffffff; --surface: #f1f5fa; --sky: #d9e6f5;
+  --line: #dbe3ed; --strong: #c9d5e3; --line-soft: #cbdaee; --pick: #f4f8fd; --info1: #e8f1ec; --info2: #f8eedf;
+}
+html[data-palette="sage"] {
+  --page: #e8efe9; --head: rgba(232, 239, 233, 0.92); --bg: #fbfdfb; --surface: #eef4ef; --sky: #d6e6da;
+  --fg: #14201a; --body: #34443b; --muted: #5d6e64; --line: #d8e3db; --strong: #c5d4c9; --line-soft: #c6d9cb;
+  --accent: #2f6b4f; --accent-ink: #24543e; --accent-weak: #dfeee4; --hint: #3c4c43; --pick: #f3f8f4;
+  --info1: #e3efe6; --info2: #f6eedf; --mic-hover: #cfe5d6; --glow: rgba(47, 107, 79, 0.2); --shadow: rgba(20, 32, 26, 0.12);
+}
+html[data-palette="sand"] {
+  --page: #f3ede3; --head: rgba(243, 237, 227, 0.92); --bg: #fffdf9; --surface: #f6f0e7; --sky: #ebdfcc;
+  --fg: #231a12; --body: #4a3d31; --muted: #76685a; --line: #e7ddcf; --strong: #d9cbb8; --line-soft: #dfcfb8;
+  --accent: #9a4e1c; --accent-ink: #7a3c14; --accent-weak: #f5e5d6; --hint: #4f4235; --pick: #fcf6ef;
+  --info1: #edf0e4; --info2: #f8e9d6; --mic-hover: #eed6c1; --glow: rgba(154, 78, 28, 0.2); --shadow: rgba(35, 26, 18, 0.12);
+}
+html[data-palette="night"] {
+  color-scheme: dark;
+  --page: #0f1a2b; --head: rgba(15, 26, 43, 0.92); --bg: #17243a; --surface: #1d2c45; --sky: #1c3150;
+  --fg: #e8eef7; --body: #c3cfdf; --muted: #8fa0b8; --line: #2a3b57; --strong: #34486a; --line-soft: #34486a;
+  --accent: #6aa8ff; --accent-ink: #a9cbff; --accent-weak: #22395c; --on-accent: #0b1424; --hint: #c3cfdf; --pick: #1b2b46;
+  --info1: #18302c; --info2: #33291b; --mic-hover: #2b4670; --glow: rgba(106, 168, 255, 0.25); --shadow: rgba(0, 0, 0, 0.4);
+  --ok: #5fd39a; --ok-weak: #163428; --warn: #f2b765; --warn-weak: #3a2b14; --danger: #ff8a80; --scrim: rgba(0, 0, 0, 0.6);
+}
+body, body::before { background: var(--page); }
+.site-head { background: var(--head); backdrop-filter: saturate(1.4) blur(8px); -webkit-backdrop-filter: saturate(1.4) blur(8px); }
+.site-foot { background: var(--page); }
+.search, .say button { border-color: var(--line-soft); }
+.say button { color: var(--hint); }
+.mic:hover { background: var(--mic-hover); }
+.mic.is-listening { box-shadow: 0 0 0 6px var(--glow); }
+.tier.is-pick { background: var(--pick); }
+.info-grid .box:nth-child(1) { background: var(--info1); }
+.info-grid .box:nth-child(2) { background: var(--info2); }
+html[data-palette] .box, html[data-palette] .theme-card, html[data-palette] .tier { box-shadow: 0 1px 2px var(--shadow); }
+html[data-palette="night"] .theme-card .ph { filter: brightness(0.85) saturate(0.9); }
+.hero p.lead, .hero .voice-status, .say { color: var(--hint); }
+html[data-palette="night"] .theme-card .card-en { color: color-mix(in srgb, var(--ink) 35%, #ffffff); }
+.palette { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.palette button { width: 26px; height: 26px; min-height: 26px; padding: 0; border-radius: 999px; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--strong); cursor: pointer; background: var(--sw); }
+.palette button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
 </style>
 
 <!-- 상단 헤더 -->
@@ -408,6 +465,13 @@ h2 { font-weight: 800; letter-spacing: -0.01em; }
 <footer class="site-foot">
   <div class="wrap">
     <span>미스터 월드 테마 여행 서비스 · 고객 인터페이스 · 회원·예약 데이터는 서버 DB에 저장됩니다.</span>
+    <span class="palette" role="group" aria-label="배경 색상">배경
+      <button type="button" data-pal="sky" style="--sw:#ffffff" aria-label="화이트" title="화이트"></button>
+      <button type="button" data-pal="mist" style="--sw:#d9e6f5" aria-label="미스트 블루" title="미스트 블루"></button>
+      <button type="button" data-pal="sage" style="--sw:#cfe2d4" aria-label="세이지 그린" title="세이지 그린"></button>
+      <button type="button" data-pal="sand" style="--sw:#eadcc6" aria-label="샌드 베이지" title="샌드 베이지"></button>
+      <button type="button" data-pal="night" style="--sw:#17243a" aria-label="나이트 네이비" title="나이트 네이비"></button>
+    </span><script>window.__mwPalApply && window.__mwPalApply();</script>
     <a class="btn btn-sm" href="/staff">직원 포털</a>
   </div>
 </footer>
