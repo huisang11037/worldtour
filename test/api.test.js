@@ -110,8 +110,11 @@ test('허니문: 2팀이 모이면 출발 확정 + 문자 + 커플티 출고', a
   assert.equal(r.status, 201);
   assert.equal(r.body.confirmedNow, true);
   assert.equal(r.body.booking.status.key, 'ok');
+  // 결제한 고객은 결제 완료 문자 1통 (출발 확정 안내 포함)
   assert.equal(r.body.sms.length, 1);
-  assert.match(r.body.sms[0].message, /2팀 이상/);
+  assert.match(r.body.sms[0].message, /결제가 완료되었습니다/);
+  assert.match(r.body.sms[0].message, /허니문 낭만 투어 \(제주\)/);
+  assert.match(r.body.sms[0].message, /출발이 확정되었습니다/);
   assert.equal(stockOf('커플'), before - 4); // 기존 1팀 2벌 + 내 2벌
   // 함께 확정된 다른 고객(이하늘)도 문자를 받는다
   const sky = await login('sky');
@@ -236,4 +239,63 @@ test('모의 결제: 결제 정보 검증, 결제 내역 저장, 취소 시 환�
   assert.equal(card.body.booking.payment.info, '신용·체크카드 ****4242 · 3개월 할부');
   const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(card.body.booking.id);
   assert.ok(!JSON.stringify(row).includes('4242424242424242'));
+});
+
+test('실제 문자 발송: 꺼져 있으면 기록만, 켜면 가입 고객에게 발송, 데모 계정·한도는 건너뜀', async () => {
+  const sms = require('../server/sms');
+  const sent = [];
+  sms.setTransport(async m => { sent.push(m); return { id: 'G-TEST' }; });
+  Object.assign(process.env, { SOLAPI_API_KEY: 'k', SOLAPI_API_SECRET: 's', SMS_SENDER: '010-9999-0000', SMS_DAILY_LIMIT: '2' });
+  try {
+    const s = await login('staff');
+    // 신규 가입 고객 (실제 번호로 가정)
+    const c = client();
+    await c('POST', '/auth/signup', { uid: 'prof', upw: '1234', uname: '교수님', uaddr: '서울', uphone: '010-7777-1111' });
+    const book = () => c('POST', '/bookings', draft('golf', { dest: 'chiangmai', date: SAT[3], pax: 1 }));
+
+    // 1) 설정을 켜기 전: 시뮬레이션
+    let r = await book(); await sms.flush();
+    assert.equal(sent.length, 0);
+    let log = (await s('GET', '/staff/sms')).body.find(x => x.bookingId === r.body.booking.id);
+    assert.equal(log.status, 'simulated');
+
+    // 2) 직원이 실제 발송 켜기 → 결제 완료 문자 실제 발송 (번호는 숫자만, LMS 제목 포함)
+    assert.equal((await s('PUT', '/staff/sms/settings', { enabled: true })).body.active, true);
+    r = await book(); await sms.flush();
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, '01077771111');
+    assert.equal(sent[0].from, '01099990000');
+    assert.match(sent[0].subject, /결제 완료/);
+    assert.match(sent[0].text, /골프 챌린지 투어 \(태국 치앙마이\)/);
+    log = (await s('GET', '/staff/sms')).body.find(x => x.bookingId === r.body.booking.id);
+    assert.equal(log.status, 'sent');
+
+    // 3) 데모 계정은 가짜 번호라 건너뜀
+    const demo = await login('demo');
+    r = await demo('POST', '/bookings', draft('golf', { dest: 'chiangmai', date: SAT[4], pax: 1 })); await sms.flush();
+    assert.equal(sent.length, 1);
+    log = (await s('GET', '/staff/sms')).body.find(x => x.bookingId === r.body.booking.id);
+    assert.equal(log.status, 'skipped');
+
+    // 4) 하루 한도(2건) 초과 시 건너뜀
+    await book(); await sms.flush();
+    await book(); await sms.flush();
+    assert.equal(sent.length, 2);
+    const st = (await s('GET', '/staff/sms/settings')).body;
+    assert.equal(st.sentToday, 2);
+    assert.equal(st.sender, '010-****-0000');
+
+    // 5) 전송 실패는 failed 로 기록되고 예약은 정상 처리
+    sms.setTransport(async () => { throw new Error('잔액 부족'); });
+    await s('PUT', '/staff/sms/settings', { enabled: true });
+    process.env.SMS_DAILY_LIMIT = '10';
+    r = await book(); await sms.flush();
+    assert.equal(r.status, 201);
+    log = (await s('GET', '/staff/sms')).body.find(x => x.bookingId === r.body.booking.id);
+    assert.equal(log.status, 'failed');
+    assert.equal(log.error, '잔액 부족');
+    await s('PUT', '/staff/sms/settings', { enabled: false });
+  } finally {
+    ['SOLAPI_API_KEY', 'SOLAPI_API_SECRET', 'SMS_SENDER', 'SMS_DAILY_LIMIT'].forEach(k => delete process.env[k]);
+  }
 });

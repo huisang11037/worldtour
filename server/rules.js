@@ -1,6 +1,7 @@
 'use strict';
 // 업무 규칙: 상품 카탈로그, 가격 계산, 예약 검증, 출발 확정, 기념품 재고 배정, 단골 할인
 const { tx } = require('./db');
+const sms = require('./sms');
 const { toKey, fromKey, addDays, today, todayKey, nowStamp, upcomingSaturdays, won, HttpError, bad } = require('./util');
 
 const NIGHTS = [2, 3, 4, 5];       // 선택 가능한 여행 기간 (박)
@@ -184,11 +185,36 @@ function returnItems(db, booking) {
   return booking.items_allocated;
 }
 
-/* ───────────── 문자 (발송 시뮬레이션) ───────────── */
+/* ───────────── 문자 ───────────── */
+// sms_log 에 기록하고, 실제 발송 조건(SOLAPI 키 + 직원 설정 + 안전장치)이 맞으면 트랜잭션 후 실제로 보낸다 (server/sms.js)
 function sendSms(db, user, bookingId, kind, message) {
-  db.prepare(`INSERT INTO sms_log (user_id, phone, booking_id, kind, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+  const info = db.prepare(`INSERT INTO sms_log (user_id, phone, booking_id, kind, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(user.id, user.phone, bookingId, kind, message, nowStamp());
+  sms.schedule(db, Number(info.lastInsertRowid));
   return { phone: user.phone, kind, message };
+}
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const fmtDay = ds => { const d = fromKey(ds); return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]})`; };
+// 결제 완료 문자: 어떤 패키지를 샀는지 확인용
+function paymentMsg(u, v) {
+  const L = v.labels;
+  const lines = [
+    `[미스터월드] ${u.name}님, 결제가 완료되었습니다.`,
+    '',
+    `■ 상품: ${v.themeName} (${v.destName})`,
+    `■ 일정: ${fmtDay(v.date)} 출발, ${v.nights}박 ${v.nights + 1}일`,
+    `■ 인원: ${v.pax}명`,
+    `■ 등급: ${L.style} (${L.hotel} · ${L.meal} · ${L.vehicle})`
+  ];
+  if (L.addons.length) lines.push(`■ 추가: ${L.addons.join(', ')}`);
+  lines.push(`■ 결제: ${won(v.total)}${v.discount ? ` (할인 ${won(v.discount)} 적용)` : ''}`);
+  if (v.payment) lines.push(`■ 수단: ${v.payment.info}`);
+  lines.push(`■ 예약번호: ${v.id}`, '');
+  const unit = v.departure.unit === 'team' ? '팀' : '명';
+  lines.push(v.status.key === 'ok'
+    ? '출발이 확정되었습니다. 즐거운 여행 되세요!'
+    : `현재 신청 ${v.departure.progress}/${v.departure.min}${unit}입니다. ${v.departure.min}${unit}이 모이면 출발 확정 문자를 보내드립니다.`);
+  return lines.join(String.fromCharCode(10)); // 줄바꿈
 }
 const md = ds => { const d = fromKey(ds); return `${d.getMonth() + 1}/${d.getDate()}`; };
 const confirmMsg = (u, t, dep, bookingId) =>
@@ -198,7 +224,8 @@ const closedMsg = (u, t, dep, bookingId, memo) =>
 
 /* ───────────── 출발 확정 처리 ───────────── */
 // 확정 조건을 만족하면 출발 확정 → 모든 예약자에게 문자 + 기념품 출고
-function confirmIfReady(db, cat, departureId) {
+// skipBookingId: 방금 결제한 예약 — 결제 완료 문자에 확정 안내를 담으므로 확정 문자를 따로 보내지 않는다
+function confirmIfReady(db, cat, departureId, skipBookingId = null) {
   const dep = getDeparture(db, departureId);
   if (!dep || dep.status !== 'open') return null;
   const t = cat.themes[dep.theme_code];
@@ -208,9 +235,10 @@ function confirmIfReady(db, cat, departureId) {
     WHERE b.departure_id = ? AND b.status = 'booked' ORDER BY b.created_at`).all(departureId);
   const sms = list.map(b => {
     allocateItems(db, t, b);
+    if (b.id === skipBookingId) return null;
     return Object.assign(sendSms(db, { id: b.user_id, name: b.name, phone: b.phone }, b.id, 'confirm', confirmMsg(b, t, dep, b.id)), { userId: b.user_id, bookingId: b.id });
   });
-  return { departureId, sms };
+  return { departureId, sms: sms.filter(Boolean) };
 }
 
 /* ───────────── 단골 고객 할인 ───────────── */
@@ -339,20 +367,21 @@ function createBooking(db, user, input, opts = {}) {
     const addAddon = db.prepare('INSERT INTO booking_addons (booking_id, addon_code) VALUES (?, ?)');
     b.addons.forEach(a => addAddon.run(id, a));
 
+    // 고객이 직접 결제한 예약 (시드 데이터는 opts.payment 로 결제 정보를 넣으므로 결제 문자 없음)
+    const customerPaid = !opts.payment;
+    const u = db.prepare('SELECT id, name, phone FROM users WHERE id = ?').get(user.id);
     let mySms = [];
     let confirmedNow = false;
     if (dep.status === 'confirmed') {
-      // 이미 확정된 일정에 합류: 이 예약만 기념품 출고 + 확정 문자
-      const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
-      allocateItems(db, t, row);
-      const full = getDeparture(db, dep.id);
-      const u = db.prepare('SELECT id, name, phone FROM users WHERE id = ?').get(user.id);
-      if (!opts.silent) mySms = [sendSms(db, u, id, 'confirm', confirmMsg(u, t, full, id))];
+      // 이미 확정된 일정에 합류: 이 예약만 기념품 출고 (확정 안내는 결제 문자에 포함)
+      allocateItems(db, t, db.prepare('SELECT * FROM bookings WHERE id = ?').get(id));
+      if (!customerPaid && !opts.silent) mySms = [sendSms(db, u, id, 'confirm', confirmMsg(u, t, getDeparture(db, dep.id), id))];
     } else {
-      const r = confirmIfReady(db, cat, dep.id);
+      const r = confirmIfReady(db, cat, dep.id, customerPaid ? id : null);
       if (r) { confirmedNow = true; mySms = r.sms.filter(s => s.userId === user.id && s.bookingId === id); }
     }
     const view = toBookingView(db, cat, db.prepare(`${BOOKING_SELECT} WHERE b.id = ?`).get(id));
+    if (customerPaid) mySms = [sendSms(db, u, id, 'booking', paymentMsg(u, view))];
     return { booking: view, confirmedNow, sms: mySms.map(s => ({ phone: s.phone, message: s.message })) };
   });
 }

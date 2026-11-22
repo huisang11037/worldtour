@@ -840,21 +840,34 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
 
   /* ---------------- 문자 발송 기록 ---------------- */
   async function viewSms() {
-    const list = await api('GET', '/staff/sms');
-    const KIND = { confirm: ['출발 확정', 'st-ok'], closed: ['운영 취소', 'st-cancel'], booking: ['예약 접수', 'st-ongoing'], cancel: ['예약 취소', 'st-cancel'] };
-    const rows = list.length ? list.map(s => `<tr>
+    const [list, st] = await Promise.all([api('GET', '/staff/sms'), api('GET', '/staff/sms/settings')]);
+    const KIND = { confirm: ['출발 확정', 'st-ok'], closed: ['운영 취소', 'st-cancel'], booking: ['결제 완료', 'st-ongoing'], cancel: ['예약 취소', 'st-cancel'] };
+    const SEND = { simulated: ['기록만', 'st-done'], sending: ['발송 중', 'st-wait'], sent: ['실제 발송', 'st-ok'], failed: ['발송 실패', 'st-low'], skipped: ['건너뜀', 'st-wait'] };
+    const rows = list.length ? list.map(s => {
+      const k = KIND[s.kind] || [s.kind, 'st-done'], d = SEND[s.status] || SEND.simulated;
+      return `<tr>
       <td class="num small">${esc(s.createdAt)}</td>
       <td>${esc(s.name)}<span class="sub">${esc(s.phone)}</span></td>
-      <td><span class="badge ${KIND[s.kind][1]}">${KIND[s.kind][0]}</span></td>
-      <td>${esc(s.message)}</td>
+      <td><span class="badge ${k[1]}">${k[0]}</span></td>
+      <td style="white-space:pre-line">${esc(s.message)}</td>
+      <td><span class="badge ${d[1]}">${d[0]}</span>${s.error ? `<span class="sub">${esc(s.error)}</span>` : ''}${s.sentAt ? `<span class="sub num">${esc(s.sentAt.slice(11, 19))}</span>` : ''}</td>
       <td class="small ${s.readAt ? 'muted' : 'warn-t'}">${s.readAt ? '확인함' : '미확인'}</td>
-    </tr>`).join('') : '<tr><td colspan="5" class="empty">발송된 문자가 없습니다.</td></tr>';
+    </tr>`;
+    }).join('') : '<tr><td colspan="6" class="empty">발송된 문자가 없습니다.</td></tr>';
+    const panel = !st.configured
+      ? `<div class="alert"><b>실제 문자 발송: 설정 안 됨 (기록만 남김)</b><span>서버 환경변수 <code>SOLAPI_API_KEY</code>, <code>SOLAPI_API_SECRET</code>, <code>SMS_SENDER</code>(SOLAPI에 등록한 발신번호)를 넣으면 실제 발송을 켤 수 있습니다. Render → 서비스 → Environment.</span></div>`
+      : `<div class="alert ${st.active ? 'ok' : ''}">
+          <b>실제 문자 발송: ${st.active ? '켜짐' : '꺼짐 (기록만 남김)'}</b>
+          <span>발신번호 ${esc(st.sender)} · 오늘 실제 발송 ${st.sentToday}/${st.dailyLimit}건${st.allowlist ? ` · 허용 번호 ${st.allowlist.length}개만` : ''} · 데모 계정(demo, sky 등)은 가짜 번호라 항상 건너뜁니다.</span>
+          <span><button type="button" class="btn btn-sm ${st.active ? 'btn-danger' : 'btn-primary'}" data-action="sms-toggle" data-on="${st.active ? '0' : '1'}">${st.active ? '실제 발송 끄기' : '실제 발송 켜기'}</button></span>
+        </div>`;
     return `<div class="view">
       <div><div class="label">SMS Log</div><h1>문자 발송 기록</h1></div>
-      <div class="tbl-wrap"><table class="tbl" style="min-width:860px">
-        <thead><tr><th>발송 일시</th><th>수신자</th><th>구분</th><th>내용</th><th>고객 확인</th></tr></thead>
+      ${panel}
+      <div class="tbl-wrap"><table class="tbl" style="min-width:960px">
+        <thead><tr><th>일시</th><th>수신자</th><th>구분</th><th>내용</th><th>발송 결과</th><th>고객 확인</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
-      <p class="note">실제 문자 발송 대신 기록만 남기는 시뮬레이션입니다. 고객이 로그인하면 확인하지 않은 문자가 고객 화면에 알림으로 표시됩니다. 실제 서비스에서는 이 지점에 문자 발송 API를 연결합니다.</p>
+      <p class="note">결제가 끝나면 '결제 완료' 문자(구매한 패키지·일정·금액·예약번호), 출발 기준 인원이 모이면 '출발 확정' 문자가 갑니다. 모든 문자는 기록되고, 실제 발송이 켜져 있으면 SOLAPI로 고객 휴대폰에 보냅니다. 무료 서버는 재배포·재시작하면 이 설정이 초기화되므로 발표 직전에 확인하세요.</p>
     </div>`;
   }
 
@@ -996,6 +1009,12 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
       case 'do-reset':
         if (await attempt(() => api('POST', '/staff/reset'))) { closeModal(); state.me = null; toast('데모 데이터를 초기화했습니다. 다시 로그인해 주세요.'); render(); }
         break;
+      case 'sms-toggle': {
+        const on = a.dataset.on === '1';
+        if (on && !confirm('실제 문자 발송을 켤까요? 이후 결제·출발 확정 문자가 고객 휴대폰으로 실제 발송되고 SOLAPI 요금이 차감됩니다.')) break;
+        if (await attempt(() => api('PUT', '/staff/sms/settings', { enabled: on }))) { toast(on ? '실제 문자 발송을 켰습니다.' : '실제 문자 발송을 껐습니다.'); render(); }
+        break;
+      }
     }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });

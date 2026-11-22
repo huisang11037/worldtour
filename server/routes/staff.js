@@ -6,6 +6,7 @@ const { tx } = require('../db');
 const { requireStaff } = require('../auth');
 const { HttpError, bad, nowStamp, todayKey, toKey, addDays, today, isDateKey } = require('../util');
 const { seed } = require('../seed');
+const sms = require('../sms');
 
 const int = (v, name, { min = 0, max = 1e9 } = {}) => {
   const n = Number(v);
@@ -359,8 +360,18 @@ module.exports = function staffRoutes(db) {
 
   /* ---------- 문자 발송 기록 ---------- */
   r.get('/sms', (req, res) => {
-    res.json(db.prepare(`SELECT s.id, s.phone, s.booking_id AS bookingId, s.kind, s.message, s.created_at AS createdAt, s.read_at AS readAt, u.name
+    res.json(db.prepare(`SELECT s.id, s.phone, s.booking_id AS bookingId, s.kind, s.message, s.created_at AS createdAt, s.read_at AS readAt, u.name,
+      s.status, s.error, s.sent_at AS sentAt
       FROM sms_log s JOIN users u ON u.id = s.user_id ORDER BY s.id DESC LIMIT 200`).all());
+  });
+
+  // 실제 문자 발송 설정 (SOLAPI 키는 환경변수, 켜기/끄기는 여기서)
+  r.get('/sms/settings', (req, res) => res.json(sms.status(db)));
+  r.put('/sms/settings', (req, res) => {
+    const on = !!(req.body || {}).enabled;
+    if (on && !sms.config().configured) throw bad('SOLAPI 키와 발신번호가 서버 환경변수에 설정되지 않았습니다. (SOLAPI_API_KEY, SOLAPI_API_SECRET, SMS_SENDER)');
+    sms.setEnabled(db, on);
+    res.json(sms.status(db));
   });
 
   /* ---------- 데모 데이터 초기화 ---------- */

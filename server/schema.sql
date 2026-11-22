@@ -191,7 +191,17 @@ CREATE TABLE IF NOT EXISTS sms_log (
   kind        TEXT    NOT NULL CHECK (kind IN ('confirm', 'booking', 'cancel', 'closed')),
   message     TEXT    NOT NULL,
   created_at  TEXT    NOT NULL,
-  read_at     TEXT
+  read_at     TEXT,
+  status      TEXT    NOT NULL DEFAULT 'simulated',             -- simulated 기록만 · sending · sent 실제 발송 · failed 실패 · skipped 안전장치로 건너뜀
+  provider_id TEXT,                                             -- SOLAPI 그룹 ID
+  error       TEXT,                                             -- 실패·건너뜀 사유
+  sent_at     TEXT
+);
+
+-- 서비스 설정 (예: sms_real = 1 실제 문자 발송 켜짐)
+CREATE TABLE IF NOT EXISTS settings (
+  key         TEXT    PRIMARY KEY,
+  value       TEXT    NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_bookings_user      ON bookings(user_id);
