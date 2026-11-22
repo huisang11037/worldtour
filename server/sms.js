@@ -75,7 +75,7 @@ async function dispatch(db, smsId) {
   if (!c.configured || !isEnabled(db)) return 'simulated';
   const to = digits(row.phone);
   let skip = null;
-  if (DEMO_LOGIN_IDS.has(row.login_id)) skip = '데모 계정 (가짜 번호라 실제 발송 안 함)';
+  if (DEMO_LOGIN_IDS.has(row.login_id)) skip = '초기 등록 고객 계정 (실제 발송 제외)';
   else if (!/^01\d{8,9}$/.test(to)) skip = '휴대폰 번호 형식 아님';
   else if (c.allow && !c.allow.has(to)) skip = '허용 번호 목록에 없음';
   else if (sentToday(db) >= c.dailyLimit) skip = `하루 발송 한도(${c.dailyLimit}건) 초과`;

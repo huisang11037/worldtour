@@ -34,7 +34,7 @@ function loadCatalog(db, { includeInactive = false } = {}) {
       minStyle: t.min_style, fixedPax: t.fixed_pax, maxPax: t.max_pax, vehicle: t.default_vehicle,
       confirmUnit: t.confirm_unit, confirmMin: t.confirm_min,
       item: t.item_id ? { id: t.item_id, name: t.item_name, unit: t.item_unit, perPerson: t.item_per_person } : null,
-      active: !!t.active, sort: t.sort,
+      active: !!t.active, sort: t.sort, image: t.image_url || '',
       services: svc.all(t.code).map(r => r.text),
       dests: dst.all(t.code).map(d => ({ id: d.code, dbId: d.id, name: d.name, region: d.region, extra: d.extra_price, active: !!d.active }))
     };
@@ -307,6 +307,7 @@ function toBookingView(db, cat, r) {
 // 실제 결제 대행사(PG)를 연결하지 않은 시뮬레이션. 화면에서 입력한 카드 번호는 브라우저에서만 검사하고
 // 서버에는 결제 수단과 끝 4자리만 보낸다.
 const PAY_METHODS = { card: '신용·체크카드', transfer: '실시간 계좌이체', easypay: '간편결제' };
+const EASYPAY = ['네이버페이', '카카오페이', '토스페이', '페이코'];
 const BANKS = ['국민은행', '신한은행', '우리은행', '하나은행', '농협은행', '기업은행', '카카오뱅크', '토스뱅크'];
 function validatePayment(p) {
   p = p || {};
@@ -322,9 +323,10 @@ function validatePayment(p) {
     if (!BANKS.includes(p.bank)) throw bad('은행을 선택해 주세요.');
     return { method: 'transfer', info: `${PAY_METHODS.transfer} (${p.bank})` };
   }
-  return { method: 'easypay', info: PAY_METHODS.easypay };
+  if (!EASYPAY.includes(p.provider)) throw bad('간편결제 서비스를 선택해 주세요.');
+  return { method: 'easypay', info: `${PAY_METHODS.easypay} (${p.provider})` };
 }
-const mockApproval = () => 'MOCK-' + String(Math.floor(10000000 + Math.random() * 90000000));
+const mockApproval = () => String(Math.floor(10000000 + Math.random() * 90000000));
 
 /* ───────────── 예약 생성 / 취소 ───────────── */
 function newBookingId(db) {
@@ -424,5 +426,5 @@ module.exports = {
   ensureDepartures, resetEnsureCache, departureStats, progressOf, unitLabel, ruleText, isConfirmable, getDeparture, customerDepartures,
   moveStock, allocateItems, returnItems, sendSms, confirmIfReady,
   completedTrips, tierOf, bookingStatus, BOOKING_SELECT, toBookingView,
-  createBooking, cancelBooking, closeDeparture, validatePayment, PAY_METHODS, BANKS
+  createBooking, cancelBooking, closeDeparture, validatePayment, PAY_METHODS, BANKS, EASYPAY
 };

@@ -15,7 +15,7 @@ module.exports = function customerRoutes(db) {
 
   /* ---------- 상품 ---------- */
   // 판매 중인 테마·여행지·등급·옵션 가격표
-  r.get('/catalog', (req, res) => res.json(Object.assign(rules.loadCatalog(db), { payMethods: rules.PAY_METHODS, banks: rules.BANKS })));
+  r.get('/catalog', (req, res) => res.json(Object.assign(rules.loadCatalog(db), { payMethods: rules.PAY_METHODS, banks: rules.BANKS, easypay: rules.EASYPAY })));
 
   // 테마+여행지의 출발일별 신청 현황
   r.get('/departures', (req, res) => {

@@ -8,6 +8,9 @@ const { HttpError, bad, nowStamp, todayKey, toKey, addDays, today, isDateKey } =
 const { seed } = require('../seed');
 const sms = require('../sms');
 
+// 재고 상태: short = 확정 대기 예약에 나갈 수량보다 적음, low = 안전 재고 미만, ok = 정상
+const stockState = (stock, safety, pending) => (stock < pending ? 'short' : stock < safety ? 'low' : 'ok');
+
 const int = (v, name, { min = 0, max = 1e9 } = {}) => {
   const n = Number(v);
   if (!Number.isInteger(n) || n < min || n > max) throw bad(`${name} 값을 확인해 주세요. (${min} ~ ${max.toLocaleString('ko-KR')})`);
@@ -72,8 +75,8 @@ module.exports = function staffRoutes(db) {
       upcoming: active.slice(0, 8),
       customers: db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'customer'").get().n,
       newBookings7d: db.prepare("SELECT COUNT(*) AS n FROM bookings WHERE created_at >= ?").get(toKey(addDays(today(), -7))).n,
-      lowStock: items.filter(i => i.stock - (pending[i.id] || 0) <= i.safety_stock)
-        .map(i => ({ id: i.id, name: i.name, unit: i.unit, stock: i.stock, safety: i.safety_stock, pending: pending[i.id] || 0 }))
+      lowStock: items.map(i => ({ id: i.id, name: i.name, unit: i.unit, stock: i.stock, safety: i.safety_stock, pending: pending[i.id] || 0,
+        state: stockState(i.stock, i.safety_stock, pending[i.id] || 0) })).filter(i => i.state !== 'ok')
     });
   });
 
@@ -172,6 +175,11 @@ module.exports = function staffRoutes(db) {
     if (has('itemPerPerson')) out.item_per_person = int(b.itemPerPerson, '1인당 기념품 수량', { max: 10 });
     if (has('active')) out.active = b.active ? 1 : 0;
     if (has('sort')) out.sort = int(b.sort, '정렬 순서', { max: 999 });
+    if (has('image')) {
+      const url = text(b.image, '대표 사진 주소', { max: 500, required: false });
+      if (url && !/^https:\/\/[^\s"'<>]+$/.test(url)) throw bad('대표 사진 주소는 https:// 로 시작하는 이미지 주소로 입력해 주세요.');
+      out.image_url = url;
+    }
     return out;
   }
   function saveServices(code, services) {
@@ -284,7 +292,8 @@ module.exports = function staffRoutes(db) {
     res.json(items.map(i => ({
       id: i.id, code: i.code, name: i.name, unit: i.unit, stock: i.stock, safety: i.safety_stock, createdAt: i.created_at,
       themes: themes.filter(t => t.item_id === i.id).map(t => t.name),
-      pending: pending.get(i.id, tk).qty  // 모집 중 예약이 확정되면 출고될 예정 수량
+      pending: pending.get(i.id, tk).qty,  // 모집 중 예약이 확정되면 출고될 예정 수량
+      state: stockState(i.stock, i.safety_stock, pending.get(i.id, tk).qty)
     })));
   });
 

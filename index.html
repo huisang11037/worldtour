@@ -233,6 +233,16 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
 .pay-form { display: grid; gap: 20px; }
 .card-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 560px) { .card-row { grid-template-columns: 1fr 1fr; } .card-row .fld:first-child { grid-column: 1 / -1; } }
+.easypay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.easypay-btn { font: inherit; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; height: 56px; border-radius: 12px; border: 1px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .08s ease, filter .15s ease; }
+.easypay-btn:hover { filter: brightness(1.05); }
+.easypay-btn:active { transform: scale(0.98); }
+.easypay-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.easypay-btn .mark { font-size: 12px; font-weight: 800; border-radius: 6px; padding: 2px 6px; line-height: 1.2; }
+.ep-naver { background: #03c75a; color: #fff; } .ep-naver .mark { background: #fff; color: #03c75a; }
+.ep-kakao { background: #fee500; color: #191919; } .ep-kakao .mark { background: #191919; color: #fee500; }
+.ep-toss { background: #0064ff; color: #fff; } .ep-toss .mark { background: #fff; color: #0064ff; }
+.ep-payco { background: #fa2828; color: #fff; } .ep-payco .mark { background: #fff; color: #fa2828; }
 .mock-note { font-size: 13px; padding: 10px 12px; border: 1px dashed var(--warn); background: var(--warn-weak); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .agree { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
 .agree input { margin-top: 4px; width: 16px; height: 16px; flex: none; }
@@ -590,7 +600,8 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
     golf: { tint: '#e3f4f4', ink: '#0b6b70', photo: '골프 리조트', img: '', icon: 'M8 21V3l9 4-9 4M5 21h8' },
     trekking: { tint: '#fdf1de', ink: '#8a4b0b', photo: '산 능선', img: '', icon: 'M3 20l6-10 4 6 3-4 5 8z' }
   };
-  const lookOf = t => THEME_LOOK[t.id] || { tint: '#eef5ff', ink: '#1d4f91', photo: '', img: '', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18' };
+  // 사진은 서버 상품 정보의 대표 사진(t.image, 직원 화면에서 변경)을 쓴다
+  const lookOf = t => Object.assign({}, THEME_LOOK[t.id] || { tint: '#eef5ff', ink: '#1d4f91', photo: '', img: '', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18' }, t.image ? { img: t.image } : {});
   // 출발 확정 규칙 문구 (허니문: 2팀, 그 외: 3명)
   const unitOf = t => (t.confirmUnit === 'team' ? '팀' : '명');
   const ruleOf = t => `신청 ${t.confirmMin}${unitOf(t)} 이상`;
@@ -633,7 +644,7 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
   const state = {
     user: null, myBookings: null, deps: {}, depLoading: {},
     draft: null, returnTo: null, notice: '', lastBooking: null, lastSms: [], ready: false,
-    pay: { method: 'card', bank: '', installment: 0 }, payMethods: {}, banks: []
+    pay: { method: 'card', bank: '', installment: 0 }, payMethods: {}, banks: [], easypay: []
   };
   // 현재 로그인한 고객 (없으면 null)
   const me = () => state.user;
@@ -1117,8 +1128,8 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
         <div class="ph">
           <span class="ph-badge">${t.fixedPax ? `${t.fixedPax}인 전용` : `1–${t.maxPax}인`}</span>
           ${look.img
-            ? `<img src="${esc(look.img)}" alt="${esc(t.name)} 예시 사진" loading="lazy">`
-            : `<span class="ph-icon">${icon(look.icon)}</span><span class="ph-cap">예시 사진 자리${look.photo ? ' · ' + esc(look.photo) : ''}</span>`}
+            ? `<img src="${esc(look.img)}" alt="${esc(t.name)} 대표 사진" loading="lazy">`
+            : `<span class="ph-icon">${icon(look.icon)}</span>${look.photo ? `<span class="ph-cap">${esc(look.photo)}</span>` : ''}`}
         </div>
         <div class="card-body">
           <div style="display:grid;gap:4px">
@@ -1162,7 +1173,6 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
           ? '마이크를 누르고 원하는 여행을 말하거나, 글로 입력하세요. 여행지·기간·인원도 함께 말하면 미리 골라 드립니다.'
           : '이 브라우저는 음성인식을 지원하지 않습니다 (Chrome·Edge에서 사용 가능). 글로 입력하거나 아래 테마를 골라 주세요.'}</span>
         <div class="say"><span>이렇게 말해 보세요</span>${examples.map(x => `<button type="button" data-action="say" data-text="${esc(x)}">“${esc(x)}”</button>`).join('')}</div>
-        ${u ? '' : `<div class="row"><button type="button" class="btn btn-sm" data-action="demo-login" id="demo-login">데모 계정으로 로그인</button></div>`}
       </section>
 
       <section id="themes">
@@ -1212,10 +1222,6 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
           <div class="err" id="login-err" hidden></div>
           <button type="submit" class="btn btn-primary btn-block" id="login-submit">로그인</button>
         </form>
-        <div class="demo-hint">
-          <span>데모 계정 <code>demo</code> / <code>1234</code> · 완료된 여행 3건(단골 고객)</span>
-          <button type="button" class="btn btn-sm" data-action="fill-demo" id="fill-demo">입력하기</button>
-        </div>
         <p class="small muted">계정이 없으신가요? <a href="#signup">회원가입</a></p>
       </section>
     </div></div>`;
@@ -1425,8 +1431,6 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
     let fields = '';
     if (pay.method === 'card') {
       fields = `
-        <div class="mock-note"><span>모의 결제입니다. <b>실제 카드 번호를 입력하지 마세요.</b> 카드 번호는 서버로 전송·저장되지 않고 끝 4자리만 기록됩니다.</span>
-          <button type="button" class="btn btn-sm" data-action="fill-test-card" id="fill-test-card">테스트 카드 입력</button></div>
         <div class="card-row">
           <label class="fld"><span>카드 번호</span><input id="card-no" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000" maxlength="19"><span class="err" data-perr="card-no" hidden></span></label>
           <label class="fld"><span>유효기간</span><input id="card-exp" inputmode="numeric" autocomplete="off" placeholder="MM/YY" maxlength="5"><span class="err" data-perr="card-exp" hidden></span></label>
@@ -1435,14 +1439,18 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
         <label class="fld"><span>할부</span><select id="card-inst">${[0, 2, 3, 6, 12].map(n => `<option value="${n}"${pay.installment === n ? ' selected' : ''}>${n ? n + '개월' : '일시불'}</option>`).join('')}</select></label>`;
     } else if (pay.method === 'transfer') {
       fields = `
-        <div class="mock-note"><span>모의 결제입니다. 실제 계좌에서 출금되지 않습니다.</span></div>
         <label class="fld"><span>출금 은행</span><select id="pay-bank"><option value="">은행 선택</option>${state.banks.map(b => `<option${pay.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select><span class="err" data-perr="pay-bank" hidden></span></label>`;
     } else {
-      fields = `<div class="mock-note"><span>모의 결제입니다. 결제하기를 누르면 간편결제 인증이 완료된 것으로 처리합니다.</span></div>`;
+      const EP = { '네이버페이': ['ep-naver', 'N'], '카카오페이': ['ep-kakao', 'pay'], '토스페이': ['ep-toss', 'toss'], '페이코': ['ep-payco', 'P'] };
+      fields = `<div class="easypay-grid" role="group" aria-label="간편결제 서비스">${state.easypay.map(n => {
+        const [cls, mark] = EP[n] || ['ep-toss', '₩'];
+        return `<button type="button" class="easypay-btn ${cls}" data-action="easypay" data-provider="${esc(n)}"><span class="mark">${mark}</span>${esc(n)}</button>`;
+      }).join('')}</div>
+        <span class="small muted">결제할 간편결제 서비스를 누르면 바로 결제됩니다.</span><span class="err" data-perr="pay-easy" hidden></span>`;
     }
     return `<div class="view view-tight">
       <div class="crumbs"><a href="#home">홈</a> / <a href="#book-${esc(d.theme)}">${esc(t.name)}</a> / 결제</div>
-      <div><div class="label">Payment · 모의 결제</div><h1>결제하기</h1></div>
+      <div><div class="label">Payment</div><h1>결제하기</h1></div>
       <div class="pay-grid">
         <form id="payForm" class="pay-form" novalidate>
           <section class="box step" aria-labelledby="p1">
@@ -1486,31 +1494,23 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
       </div>
     </div>`;
   }
-  // 카드 번호 검사 (Luhn 체크섬)
-  const luhn = num => {
-    let sum = 0;
-    for (let i = 0; i < num.length; i++) {
-      let n = Number(num[num.length - 1 - i]);
-      if (i % 2) { n *= 2; if (n > 9) n -= 9; }
-      sum += n;
-    }
-    return sum % 10 === 0;
-  };
   // 결제 입력값 검사 → 서버로 보낼 결제 정보 (카드 번호 전체는 보내지 않음)
   function readPayment() {
     const errs = {}, pay = state.pay, out = { method: pay.method, agree: $('#pay-agree').checked };
     if (pay.method === 'card') {
       const no = $('#card-no').value.replace(/\D/g, ''), exp = $('#card-exp').value.trim(), cvc = $('#card-cvc').value.trim();
-      if (no.length !== 16 || !luhn(no)) errs['card-no'] = '카드 번호 16자리를 확인해 주세요.';
-      const m = /^(\d{2})\/(\d{2})$/.exec(exp);
-      const now = new Date();
-      if (!m || +m[1] < 1 || +m[1] > 12 || new Date(2000 + +m[2], +m[1], 1) <= new Date(now.getFullYear(), now.getMonth(), 1)) errs['card-exp'] = '유효기간(MM/YY)을 확인해 주세요.';
-      if (!/^\d{3}$/.test(cvc)) errs['card-cvc'] = 'CVC 3자리를 입력해 주세요.';
+      // 실제 결제가 아니므로 카드 번호는 숫자만 입력되면 통과 (서버에는 끝 4자리만 보냄)
+      if (no.length < 4) errs['card-no'] = '카드 번호를 입력해 주세요.';
+      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(exp)) errs['card-exp'] = '유효기간을 MM/YY 형식으로 입력해 주세요.';
+      if (!/^\d{3,4}$/.test(cvc)) errs['card-cvc'] = 'CVC를 입력해 주세요.';
       out.last4 = no.slice(-4);
       out.installment = Number($('#card-inst').value);
     } else if (pay.method === 'transfer') {
       if (!$('#pay-bank').value) errs['pay-bank'] = '은행을 선택해 주세요.';
       out.bank = $('#pay-bank').value;
+    } else if (pay.method === 'easypay') {
+      if (!pay.provider) errs['pay-easy'] = '결제할 간편결제 서비스를 선택해 주세요.';
+      out.provider = pay.provider;
     }
     if (!out.agree) errs['pay-agree'] = '결제 진행에 동의해 주세요.';
     document.querySelectorAll('[data-perr]').forEach(el => { const k = el.dataset.perr; el.hidden = !errs[k]; el.textContent = errs[k] || ''; });
@@ -1532,7 +1532,7 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
       <section class="box done">
         <div><div class="label">Reservation</div><h1>예약 신청이 완료되었습니다</h1></div>
         <div class="row"><span class="small muted">예약번호</span><code>${esc(b.id)}</code>${badge(s)}</div>
-        ${b.payment ? `<div class="receipt"><div class="label">Receipt · 모의 결제</div>
+        ${b.payment ? `<div class="receipt"><div class="label">Receipt</div>
           <dl class="kv kv-left">
             <dt>결제 상태</dt><dd><span class="badge st-ok">${esc(b.payment.status)}</span></dd>
             <dt>결제 수단</dt><dd>${esc(b.payment.info)}</dd>
@@ -1701,7 +1701,7 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
     const p = calc(d, tierOf().rate);
     const err = $('#pay-err');
     err.hidden = true;
-    openModal(`<div class="dialog sm processing" role="alertdialog" aria-modal="true" aria-label="결제 승인 중"><div class="spinner" aria-hidden="true"></div><b>결제 승인 중입니다</b><span class="small muted">창을 닫지 말고 잠시 기다려 주세요. (모의 결제)</span></div>`);
+    openModal(`<div class="dialog sm processing" role="alertdialog" aria-modal="true" aria-label="결제 승인 중"><div class="spinner" aria-hidden="true"></div><b>결제 승인 중입니다</b><span class="small muted">창을 닫지 말고 잠시 기다려 주세요.</span></div>`);
     await new Promise(r => setTimeout(r, 1200));
     try {
       const r = await api('POST', '/bookings', Object.assign({}, d, { addons: d.addons.slice(), expectedTotal: p.total, payment }));
@@ -1800,7 +1800,7 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
   // 결제 화면: 결제 수단 변경, 카드 번호·유효기간 자동 서식
   document.addEventListener('change', e => {
     const el = e.target;
-    if (el.name === 'paymethod') { state.pay.method = el.value; app.innerHTML = viewPay(); const f = document.getElementById('paymethod-' + el.value); if (f) f.focus(); }
+    if (el.name === 'paymethod') { state.pay.method = el.value; state.pay.provider = ''; app.innerHTML = viewPay(); const f = document.getElementById('paymethod-' + el.value); if (f) f.focus(); }
     else if (el.id === 'pay-bank') state.pay.bank = el.value;
     else if (el.id === 'card-inst') state.pay.installment = Number(el.value);
   });
@@ -1876,6 +1876,10 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
           go('login');
         } else go('pay');
         break;
+      case 'easypay':
+        state.pay.provider = a.dataset.provider;
+        doPay();
+        break;
       case 'fill-test-card': {
         const n = new Date(), yy = String((n.getFullYear() + 3) % 100).padStart(2, '0');
         $('#card-no').value = '4242 4242 4242 4242'; $('#card-exp').value = '12/' + yy; $('#card-cvc').value = '123';
@@ -1922,7 +1926,7 @@ html[data-palette="voyage"] .sec-title .label::before, html[data-palette="dusk"]
     try {
       const [cat] = await Promise.all([api('GET', '/catalog'), refreshMe()]);
       applyCatalog(cat);
-      state.payMethods = cat.payMethods || {}; state.banks = cat.banks || [];
+      state.payMethods = cat.payMethods || {}; state.banks = cat.banks || []; state.easypay = cat.easypay || [];
       state.ready = true;
       render();
       if (me()) showUnreadSms();

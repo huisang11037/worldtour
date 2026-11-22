@@ -48,7 +48,15 @@ function seed(db) {
 
     // 4개 테마 패키지
     const th = db.prepare(`INSERT INTO themes (code, name, en, who, base_price, min_style, fixed_pax, max_pax, default_vehicle,
-      confirm_unit, confirm_min, item_id, item_per_person, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      confirm_unit, confirm_min, item_id, item_per_person, sort, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    // 대표 사진: Unsplash (무료 라이선스) — 직원 화면 '여행 상품 기획'에서 바꿀 수 있다
+    const PHOTO = id => `https://images.unsplash.com/photo-${id}?w=960&h=720&fit=crop&q=75&auto=format`;
+    const IMAGES = {
+      honeymoon: PHOTO('1787142837331-a5804c2a8c31'), // 몰디브 수상 리조트 (Nabit Photos)
+      parents: PHOTO('1638964663550-e2123ac8900b'),   // 경복궁 근정전 (Daniel Bernard)
+      golf: PHOTO('1776717163992-1919b844d715'),      // 골프 코스 항공 사진 (Bernd Dittrich)
+      trekking: PHOTO('1761209844739-ec2c102f2fe7')   // 산 능선 (Wladislaw Sokolowskij)
+    };
     const sv = db.prepare('INSERT INTO theme_services (theme_code, sort, text) VALUES (?, ?, ?)');
     const ds = db.prepare('INSERT INTO destinations (theme_code, code, name, region, extra_price, sort) VALUES (?, ?, ?, ?, ?, ?)');
     const THEMES = [
@@ -66,7 +74,7 @@ function seed(db) {
         [['seorak', '설악산', '국내', 0], ['jiri', '지리산', '국내', 0], ['annapurna', '네팔 안나푸르나', '해외', 1100000]]]
     ];
     THEMES.forEach(([code, name, en, who, base, minStyle, fixedPax, maxPax, veh, unit, min, item, services, dests], i) => {
-      th.run(code, name, en, who, base, minStyle, fixedPax, maxPax, veh, unit, min, itemIds[item], 1, i + 1);
+      th.run(code, name, en, who, base, minStyle, fixedPax, maxPax, veh, unit, min, itemIds[item], 1, i + 1, IMAGES[code] || '');
       services.forEach((t, j) => sv.run(code, j + 1, t));
       dests.forEach(([dc, dn, region, extra], j) => ds.run(code, dc, dn, region, extra, j + 1));
     });

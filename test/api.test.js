@@ -229,7 +229,7 @@ test('모의 결제: 결제 정보 검증, 결제 내역 저장, 취소 시 환�
   r = await c('POST', '/bookings', draft('golf', { dest: 'chiangmai', pax: 1, payment: { method: 'transfer', bank: '신한은행', agree: true } }));
   assert.equal(r.status, 201);
   assert.equal(r.body.booking.payment.status, '결제 완료');
-  assert.match(r.body.booking.payment.approval, /^MOCK-[0-9]{8}$/);
+  assert.match(r.body.booking.payment.approval, /^[0-9]{8}$/);
   assert.equal(r.body.booking.payment.info, '실시간 계좌이체 (신한은행)');
   await c('POST', `/bookings/${r.body.booking.id}/cancel`);
   const b = (await c('GET', '/me/bookings')).body.find(x => x.id === r.body.booking.id);
@@ -298,4 +298,41 @@ test('실제 문자 발송: 꺼져 있으면 기록만, 켜면 가입 고객에�
   } finally {
     ['SOLAPI_API_KEY', 'SOLAPI_API_SECRET', 'SMS_SENDER', 'SMS_DAILY_LIMIT'].forEach(k => delete process.env[k]);
   }
+});
+
+test('재고 알림: 입고해서 안전 재고 이상이 되면 알림이 사라진다', async () => {
+  const s = await login('staff');
+  const items = (await s('GET', '/staff/items')).body;
+  const scarf = items.find(i => i.name === '아웃도어 스카프');
+  // 안전 재고만큼 채우면 정상 (이전에는 출고 예정 수량을 빼서 계속 '입고 필요'로 보였음)
+  const need = scarf.safety - scarf.stock;
+  if (need > 0) await s('POST', `/staff/items/${scarf.id}/moves`, { kind: 'in', qty: need, memo: '테스트 입고' });
+  const after = (await s('GET', '/staff/items')).body.find(i => i.id === scarf.id);
+  assert.ok(after.stock >= after.safety);
+  assert.equal(after.state, after.stock < after.pending ? 'short' : 'ok');
+  const sum = (await s('GET', '/staff/summary')).body;
+  assert.ok(!sum.lowStock.some(i => i.id === scarf.id && i.state === 'low'));
+  // 안전 재고 미만으로 줄이면 다시 알림
+  await s('POST', `/staff/items/${scarf.id}/moves`, { kind: 'adjust', qty: -(after.stock - after.safety + 1), memo: '테스트 조정' });
+  assert.equal((await s('GET', '/staff/items')).body.find(i => i.id === scarf.id).state, 'low');
+});
+
+test('상품 대표 사진: 카탈로그에 포함, 직원이 https 주소로만 변경 가능', async () => {
+  const cat = (await client()('GET', '/catalog')).body;
+  assert.match(cat.themes.honeymoon.image, /^https:\/\/images\.unsplash\.com\//);
+  const s = await login('staff');
+  assert.equal((await s('PATCH', '/staff/themes/golf', { image: 'javascript:alert(1)' })).status, 400);
+  assert.equal((await s('PATCH', '/staff/themes/golf', { image: 'https://example.com/golf.jpg' })).status, 200);
+  assert.equal((await client()('GET', '/catalog')).body.themes.golf.image, 'https://example.com/golf.jpg');
+});
+
+test('간편결제: 결제사 선택 필수, 결제 정보에 결제사 이름 저장', async () => {
+  const c = await login('joy');
+  const cat = (await c('GET', '/catalog')).body;
+  assert.deepEqual(cat.easypay, ['네이버페이', '카카오페이', '토스페이', '페이코']);
+  let r = await c('POST', '/bookings', draft('golf', { dest: 'chiangmai', pax: 1, payment: { method: 'easypay', agree: true } }));
+  assert.equal(r.status, 400);
+  r = await c('POST', '/bookings', draft('golf', { dest: 'chiangmai', pax: 1, payment: { method: 'easypay', provider: '카카오페이', agree: true } }));
+  assert.equal(r.status, 201);
+  assert.equal(r.body.booking.payment.info, '간편결제 (카카오페이)');
 });

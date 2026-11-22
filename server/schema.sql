@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS themes (
   confirm_min     INTEGER NOT NULL DEFAULT 3 CHECK (confirm_min >= 1), -- 출발 확정 최소 인원/팀
   item_id         INTEGER REFERENCES items(id),                 -- 제공 기념품
   item_per_person INTEGER NOT NULL DEFAULT 1 CHECK (item_per_person >= 0),
+  image_url       TEXT    NOT NULL DEFAULT '',                  -- 상품 대표 사진 (https 주소)
   sort            INTEGER NOT NULL DEFAULT 0,
   active          INTEGER NOT NULL DEFAULT 1
 );
