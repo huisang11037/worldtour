@@ -150,7 +150,7 @@ function customerDepartures(db, cat, themeCode, destCode) {
   const dest = t.dests.find(d => d.id === destCode);
   if (!dest) throw new HttpError(404, '존재하지 않는 여행지입니다.');
   const minDate = toKey(addDays(today(), LEAD_DAYS));
-  const rows = db.prepare(`SELECT * FROM departures WHERE destination_id = ? AND status != 'closed' AND depart_date >= ?
+  const rows = db.prepare(`SELECT * FROM departures WHERE destination_id = ? AND status != 'closed' AND departed_at IS NULL AND depart_date >= ?
     ORDER BY depart_date LIMIT 10`).all(dest.dbId, minDate);
   return rows.map(r => {
     const s = departureStats(db, r.id);
@@ -168,12 +168,12 @@ function moveStock(db, itemId, qty, kind, { bookingId = null, staffId = null, me
   db.prepare(`INSERT INTO stock_moves (item_id, qty, kind, booking_id, staff_id, memo, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)`).run(itemId, qty, kind, bookingId, staffId, memo, nowStamp());
 }
-// 출발이 확정된 예약에 기념품 출고 (인원 × 1인당 수량)
-function allocateItems(db, theme, booking) {
+// 출발 처리된 예약에 기념품 출고 (인원 × 1인당 수량)
+function allocateItems(db, theme, booking, staffId = null) {
   if (!theme.item || booking.items_allocated > 0) return 0;
   const qty = booking.pax * theme.item.perPerson;
   if (qty <= 0) return 0;
-  moveStock(db, theme.item.id, -qty, 'out', { bookingId: booking.id, memo: `출발 확정 출고 (${theme.name})` });
+  moveStock(db, theme.item.id, -qty, 'out', { bookingId: booking.id, staffId, memo: `여행 출발 출고 (${theme.name})` });
   db.prepare('UPDATE bookings SET item_id = ?, items_allocated = ? WHERE id = ?').run(theme.item.id, qty, booking.id);
   return qty;
 }
@@ -223,7 +223,7 @@ const closedMsg = (u, t, dep, bookingId, memo) =>
   `[미스터월드] ${u.name}님, ${t.name}(${dep.dest_name}, ${md(dep.depart_date)} 출발) 일정이 운영 사정으로 취소되었습니다${memo ? ` (${memo})` : ''}. 예약번호 ${bookingId} 결제 금액은 전액 환불됩니다.`;
 
 /* ───────────── 출발 확정 처리 ───────────── */
-// 확정 조건을 만족하면 출발 확정 → 모든 예약자에게 문자 + 기념품 출고
+// 확정 조건을 만족하면 출발 확정 → 모든 예약자에게 문자 (기념품은 직원이 출발 처리할 때 출고)
 // skipBookingId: 방금 결제한 예약 — 결제 완료 문자에 확정 안내를 담으므로 확정 문자를 따로 보내지 않는다
 function confirmIfReady(db, cat, departureId, skipBookingId = null) {
   const dep = getDeparture(db, departureId);
@@ -234,7 +234,6 @@ function confirmIfReady(db, cat, departureId, skipBookingId = null) {
   const list = db.prepare(`SELECT b.*, u.name, u.phone FROM bookings b JOIN users u ON u.id = b.user_id
     WHERE b.departure_id = ? AND b.status = 'booked' ORDER BY b.created_at`).all(departureId);
   const sms = list.map(b => {
-    allocateItems(db, t, b);
     if (b.id === skipBookingId) return null;
     return Object.assign(sendSms(db, { id: b.user_id, name: b.name, phone: b.phone }, b.id, 'confirm', confirmMsg(b, t, dep, b.id)), { userId: b.user_id, bookingId: b.id });
   });
@@ -242,12 +241,12 @@ function confirmIfReady(db, cat, departureId, skipBookingId = null) {
 }
 
 /* ───────────── 단골 고객 할인 ───────────── */
-// 완료된 여행(출발 확정 + 여행 종료) 수: 1–2회 5%, 3회 이상 10%
+// 완료된 여행(직원 완료 처리, 또는 출발 확정 + 여행 종료일 지남) 수: 1–2회 5%, 3회 이상 10%
 function completedTrips(db, userId) {
-  const rows = db.prepare(`SELECT dp.depart_date, b.nights FROM bookings b JOIN departures dp ON dp.id = b.departure_id
+  const rows = db.prepare(`SELECT dp.depart_date, dp.completed_at, b.nights FROM bookings b JOIN departures dp ON dp.id = b.departure_id
     WHERE b.user_id = ? AND b.status = 'booked' AND dp.status = 'confirmed'`).all(userId);
   const t = today();
-  return rows.filter(r => addDays(fromKey(r.depart_date), r.nights) < t).length;
+  return rows.filter(r => r.completed_at || addDays(fromKey(r.depart_date), r.nights) < t).length;
 }
 function tierOf(db, userId) {
   const n = completedTrips(db, userId);
@@ -259,6 +258,9 @@ function tierOf(db, userId) {
 /* ───────────── 예약 상태 ───────────── */
 function bookingStatus(theme, b, dep, stats) {
   if (b.status === 'cancelled') return { key: 'cancel', label: dep.status === 'closed' ? '출발 취소' : '예약 취소' };
+  // 직원이 출발·완료 처리한 일정은 날짜와 관계없이 그 상태를 따른다
+  if (dep.completed_at) return { key: 'done', label: '여행 완료' };
+  if (dep.departed_at) return { key: 'ongoing', label: '여행 중' };
   const start = fromKey(dep.depart_date), end = addDays(start, b.nights), t = today();
   if (dep.status !== 'confirmed') {
     if (start <= t) return { key: 'cancel', label: '출발 무산 (인원 미달)' };
@@ -269,7 +271,8 @@ function bookingStatus(theme, b, dep, stats) {
   return { key: 'ok', label: '출발 확정' };
 }
 
-const BOOKING_SELECT = `SELECT b.*, dp.depart_date, dp.status AS dep_status, dp.id AS dep_id, d.code AS dest_code, d.name AS dest_name,
+const BOOKING_SELECT = `SELECT b.*, dp.depart_date, dp.status AS dep_status, dp.id AS dep_id, dp.departed_at AS dep_departed_at,
+  dp.completed_at AS dep_completed_at, d.code AS dest_code, d.name AS dest_name,
   d.region, d.theme_code, t.name AS theme_name, t.confirm_unit, t.confirm_min,
   (SELECT GROUP_CONCAT(addon_code) FROM booking_addons a WHERE a.booking_id = b.id) AS addon_list
   FROM bookings b JOIN departures dp ON dp.id = b.departure_id JOIN destinations d ON d.id = dp.destination_id
@@ -298,8 +301,10 @@ function toBookingView(db, cat, r) {
       vehicle: cat.vehicles[r.vehicle_code] ? cat.vehicles[r.vehicle_code].short : r.vehicle_code,
       addons: (r.addon_list ? r.addon_list.split(',') : []).map(a => (cat.addons[a] ? cat.addons[a].name : a))
     },
-    departure: { status: r.dep_status, count: stats.count, teams: stats.teams, progress: progressOf(theme, stats), min: theme.confirmMin, unit: theme.confirmUnit },
-    status: bookingStatus(theme, r, { depart_date: r.depart_date, status: r.dep_status }, stats)
+    departure: { status: r.dep_status, departedAt: r.dep_departed_at, completedAt: r.dep_completed_at,
+      count: stats.count, teams: stats.teams, progress: progressOf(theme, stats), min: theme.confirmMin, unit: theme.confirmUnit },
+    changes: db.prepare('SELECT summary, before_total AS beforeTotal, after_total AS afterTotal, diff, approval, created_at AS createdAt FROM booking_changes WHERE booking_id = ? ORDER BY id').all(r.id),
+    status: bookingStatus(theme, r, { depart_date: r.depart_date, status: r.dep_status, departed_at: r.dep_departed_at, completed_at: r.dep_completed_at }, stats)
   };
 }
 
@@ -348,7 +353,7 @@ function createBooking(db, user, input, opts = {}) {
     const b = validateBookingInput(cat, input);
     const t = cat.themes[b.theme];
     const dep = db.prepare('SELECT * FROM departures WHERE destination_id = ? AND depart_date = ?').get(b.destDbId, b.date);
-    if (!dep || dep.status === 'closed') throw bad('선택한 출발일은 예약할 수 없습니다. 다른 출발일을 선택해 주세요.');
+    if (!dep || dep.status === 'closed' || (dep.departed_at && !opts.allowPast)) throw bad('선택한 출발일은 예약할 수 없습니다. 다른 출발일을 선택해 주세요.');
     if (!opts.allowPast && dep.depart_date < toKey(addDays(today(), LEAD_DAYS))) throw bad(`출발 ${LEAD_DAYS}일 전까지만 예약할 수 있습니다.`);
 
     // 모의 결제: 결제 정보 검증 (카드 번호 전체는 서버로 보내지도, 저장하지도 않는다)
@@ -375,8 +380,7 @@ function createBooking(db, user, input, opts = {}) {
     let mySms = [];
     let confirmedNow = false;
     if (dep.status === 'confirmed') {
-      // 이미 확정된 일정에 합류: 이 예약만 기념품 출고 (확정 안내는 결제 문자에 포함)
-      allocateItems(db, t, db.prepare('SELECT * FROM bookings WHERE id = ?').get(id));
+      // 이미 확정된 일정에 합류 (확정 안내는 결제 문자에 포함, 기념품은 출발 처리 때 출고)
       if (!customerPaid && !opts.silent) mySms = [sendSms(db, u, id, 'confirm', confirmMsg(u, t, getDeparture(db, dep.id), id))];
     } else {
       const r = confirmIfReady(db, cat, dep.id, customerPaid ? id : null);
@@ -391,10 +395,10 @@ function createBooking(db, user, input, opts = {}) {
 // 예약 취소 (고객 본인 또는 직원). 출발 확정 일정은 취소가 생겨도 확정 상태를 유지한다.
 function cancelBooking(db, actor, bookingId) {
   return tx(db, () => {
-    const b = db.prepare('SELECT b.*, dp.depart_date FROM bookings b JOIN departures dp ON dp.id = b.departure_id WHERE b.id = ?').get(bookingId);
+    const b = db.prepare('SELECT b.*, dp.depart_date, dp.departed_at FROM bookings b JOIN departures dp ON dp.id = b.departure_id WHERE b.id = ?').get(bookingId);
     if (!b || (actor.role !== 'staff' && b.user_id !== actor.id)) throw new HttpError(404, '예약을 찾을 수 없습니다.');
     if (b.status === 'cancelled') throw bad('이미 취소된 예약입니다.');
-    if (b.depart_date <= todayKey()) throw bad('출발일 이후에는 취소할 수 없습니다.');
+    if (b.departed_at || b.depart_date <= todayKey()) throw bad('출발일 이후에는 취소할 수 없습니다.');
     db.prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = ?, refunded_at = CASE WHEN paid_at IS NOT NULL THEN ? END WHERE id = ?").run(nowStamp(), nowStamp(), bookingId);
     const returned = returnItems(db, b);
     return { id: bookingId, returned };
@@ -407,7 +411,7 @@ function closeDeparture(db, cat, departureId, memo = '') {
     const dep = getDeparture(db, departureId);
     if (!dep) throw new HttpError(404, '출발 일정을 찾을 수 없습니다.');
     if (dep.status === 'closed') throw bad('이미 취소된 출발 일정입니다.');
-    if (dep.depart_date <= todayKey()) throw bad('이미 출발한 일정은 취소할 수 없습니다.');
+    if (dep.departed_at || dep.depart_date <= todayKey()) throw bad('이미 출발한 일정은 취소할 수 없습니다.');
     const t = cat.themes[dep.theme_code] || { name: dep.theme_code };
     db.prepare("UPDATE departures SET status = 'closed', memo = ? WHERE id = ?").run(String(memo || ''), departureId);
     const list = db.prepare(`SELECT b.*, u.name, u.phone FROM bookings b JOIN users u ON u.id = b.user_id
@@ -421,10 +425,110 @@ function closeDeparture(db, cat, departureId, memo = '') {
   });
 }
 
+/* ───────────── 예약 변경 ───────────── */
+// 출발 전까지 투어 등급·호텔·식사·교통·추가 메뉴를 바꿀 수 있다. (여행지·출발일·기간·인원은 취소 후 다시 예약)
+// 가격은 예약할 때의 할인율로 다시 계산하고, 차액은 같은 결제 수단으로 모의 추가 결제 또는 부분 환불한다.
+const optionText = (cat, b) => ({
+  style: cat.styles[b.style] ? cat.styles[b.style].name : b.style,
+  hotel: cat.hotels[b.hotel] ? cat.hotels[b.hotel].short : `${b.hotel}성`,
+  meal: cat.meals[b.meal] ? cat.meals[b.meal].short : b.meal,
+  vehicle: cat.vehicles[b.vehicle] ? cat.vehicles[b.vehicle].short : b.vehicle,
+  addons: activeAddons(cat, b).map(a => cat.addons[a].name).join(', ') || '없음'
+});
+function changeSummary(cat, before, after) {
+  const A = optionText(cat, before), B = optionText(cat, after), out = [];
+  [['style', '등급'], ['hotel', '호텔'], ['meal', '식사'], ['vehicle', '교통'], ['addons', '추가 메뉴']]
+    .forEach(([k, label]) => { if (A[k] !== B[k]) out.push(`${label} ${A[k]} → ${B[k]}`); });
+  return out;
+}
+function changeMsg(u, v, ch, payInfo) {
+  const lines = [
+    `[미스터월드] ${u.name}님, 예약이 변경되었습니다.`,
+    '',
+    `■ 상품: ${v.themeName} (${v.destName}), ${fmtDay(v.date)} 출발`,
+    `■ 변경: ${ch.summary}`,
+    `■ 결제 금액: ${won(ch.beforeTotal)} → ${won(ch.afterTotal)}`
+  ];
+  if (ch.diff > 0) lines.push(`■ 추가 결제: ${won(ch.diff)} (${payInfo})`);
+  if (ch.diff < 0) lines.push(`■ 부분 환불: ${won(-ch.diff)} (${payInfo})`);
+  lines.push(`■ 예약번호: ${v.id}`);
+  return lines.join(String.fromCharCode(10));
+}
+function updateBooking(db, actor, bookingId, input = {}) {
+  return tx(db, () => {
+    const row = db.prepare(`${BOOKING_SELECT} WHERE b.id = ?`).get(bookingId);
+    if (!row || (actor.role !== 'staff' && row.user_id !== actor.id)) throw new HttpError(404, '예약을 찾을 수 없습니다.');
+    if (row.status === 'cancelled') throw bad('취소된 예약은 변경할 수 없습니다.');
+    if (row.dep_departed_at || row.depart_date <= todayKey()) throw bad('출발일 이후에는 예약을 변경할 수 없습니다.');
+    const cat = loadCatalog(db);
+    const before = toBookingView(db, cat, row);
+    const pick = (k, v) => (input[k] === undefined ? v : input[k]);
+    const b = validateBookingInput(cat, {
+      theme: row.theme_code, dest: row.dest_code, date: row.depart_date, nights: row.nights, pax: row.pax,
+      style: pick('style', before.style), hotel: pick('hotel', before.hotel), meal: pick('meal', before.meal),
+      vehicle: pick('vehicle', before.vehicle), addons: Array.isArray(input.addons) ? input.addons : before.addons
+    });
+    const summary = changeSummary(cat, before, b);
+    if (!summary.length) throw bad('바뀐 내용이 없습니다.');
+    const p = calc(cat, b, row.discount_rate);
+    if (input.expectedTotal !== undefined && Number(input.expectedTotal) !== p.total) {
+      throw new HttpError(409, `가격 정보가 변경되었습니다. 변경 후 금액 ${won(p.total)}을 확인한 뒤 다시 시도해 주세요.`, { total: p.total });
+    }
+    const diff = p.total - row.total;
+    const ch = { summary: summary.join(', '), beforeTotal: row.total, afterTotal: p.total, diff, approval: diff ? mockApproval() : null, createdAt: nowStamp() };
+    db.prepare(`UPDATE bookings SET style_code = ?, hotel_grade = ?, meal_code = ?, vehicle_code = ?, subtotal = ?, discount = ?, total = ?
+      WHERE id = ?`).run(b.style, b.hotel, b.meal, b.vehicle, p.subtotal, p.discount, p.total, bookingId);
+    db.prepare('DELETE FROM booking_addons WHERE booking_id = ?').run(bookingId);
+    const addAddon = db.prepare('INSERT INTO booking_addons (booking_id, addon_code) VALUES (?, ?)');
+    b.addons.forEach(a => addAddon.run(bookingId, a));
+    db.prepare(`INSERT INTO booking_changes (booking_id, summary, before_total, after_total, diff, approval, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(bookingId, ch.summary, ch.beforeTotal, ch.afterTotal, ch.diff, ch.approval, ch.createdAt);
+    const view = toBookingView(db, cat, db.prepare(`${BOOKING_SELECT} WHERE b.id = ?`).get(bookingId));
+    const u = db.prepare('SELECT id, name, phone FROM users WHERE id = ?').get(row.user_id);
+    const s = sendSms(db, u, bookingId, 'booking', changeMsg(u, view, ch, row.pay_info || '결제 수단'));
+    return { booking: view, change: ch, sms: [{ phone: s.phone, message: s.message }] };
+  });
+}
+
+/* ───────────── 여행 출발 · 완료 (직원) ───────────── */
+// 출발 처리: 출발 확정 일정만. 예약 인원만큼 기념품을 출고하고(재고 차감) 고객 예약은 '여행 중'이 된다.
+function departDeparture(db, cat, departureId, staffId = null) {
+  return tx(db, () => {
+    const dep = getDeparture(db, departureId);
+    if (!dep) throw new HttpError(404, '출발 일정을 찾을 수 없습니다.');
+    if (dep.departed_at) throw bad('이미 출발 처리된 일정입니다.');
+    if (dep.status !== 'confirmed') throw bad('출발 확정된 일정만 출발 처리할 수 있습니다.');
+    const t = cat.themes[dep.theme_code];
+    const list = db.prepare("SELECT * FROM bookings WHERE departure_id = ? AND status = 'booked'").all(departureId);
+    if (!list.length) throw bad('예약이 없는 일정은 출발 처리할 수 없습니다.');
+    let out = 0;
+    if (t && t.item) {
+      const need = list.filter(b => !b.items_allocated).reduce((s, b) => s + b.pax * t.item.perPerson, 0);
+      const stock = db.prepare('SELECT stock FROM items WHERE id = ?').get(t.item.id).stock;
+      if (stock < need) throw bad(`${t.item.name} 재고가 부족합니다 (필요 ${need}${t.item.unit}, 현재 ${stock}${t.item.unit}). 입고한 뒤 다시 출발 처리해 주세요.`);
+      list.forEach(b => { out += allocateItems(db, t, b, staffId); });
+    }
+    db.prepare('UPDATE departures SET departed_at = ? WHERE id = ?').run(nowStamp(), departureId);
+    return { id: departureId, bookings: list.length, out, item: t && t.item ? { name: t.item.name, unit: t.item.unit } : null };
+  });
+}
+// 여행 완료 처리: 출발 처리된 일정만. 고객 예약은 '여행 완료'가 되고 단골 할인 횟수에 들어간다.
+function completeDeparture(db, departureId) {
+  return tx(db, () => {
+    const dep = getDeparture(db, departureId);
+    if (!dep) throw new HttpError(404, '출발 일정을 찾을 수 없습니다.');
+    if (dep.completed_at) throw bad('이미 완료 처리된 여행입니다.');
+    if (!dep.departed_at) throw bad('출발 처리한 여행만 완료 처리할 수 있습니다.');
+    db.prepare('UPDATE departures SET completed_at = ? WHERE id = ?').run(nowStamp(), departureId);
+    const n = db.prepare("SELECT COUNT(*) AS n FROM bookings WHERE departure_id = ? AND status = 'booked'").get(departureId).n;
+    return { id: departureId, bookings: n };
+  });
+}
+
 module.exports = {
   NIGHTS, LEAD_DAYS, loadCatalog, calc, activeAddons, validateBookingInput,
   ensureDepartures, resetEnsureCache, departureStats, progressOf, unitLabel, ruleText, isConfirmable, getDeparture, customerDepartures,
   moveStock, allocateItems, returnItems, sendSms, confirmIfReady,
   completedTrips, tierOf, bookingStatus, BOOKING_SELECT, toBookingView,
-  createBooking, cancelBooking, closeDeparture, validatePayment, PAY_METHODS, BANKS, EASYPAY
+  createBooking, cancelBooking, closeDeparture, updateBooking, departDeparture, completeDeparture, validatePayment, PAY_METHODS, BANKS, EASYPAY
 };

@@ -82,6 +82,11 @@ module.exports = function customerRoutes(db) {
     res.status(201).json(rules.createBooking(db, req.user, req.body || {}));
   });
 
+  // 예약 변경 (등급·호텔·식사·교통·추가 메뉴) — 차액은 모의 추가 결제/부분 환불
+  r.put('/bookings/:id', requireLogin, (req, res) => {
+    res.json(rules.updateBooking(db, req.user, req.params.id, req.body || {}));
+  });
+
   r.post('/bookings/:id/cancel', requireLogin, (req, res) => {
     res.json(rules.cancelBooking(db, req.user, req.params.id));
   });

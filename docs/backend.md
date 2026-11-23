@@ -131,7 +131,7 @@ erDiagram
 | style_code, hotel_grade, meal_code, vehicle_code | 선택한 등급과 변경한 옵션 |
 | subtotal, discount_rate, discount, total | 서버가 계산한 금액 (예약 시점 가격 보존) |
 | status | `booked` · `cancelled` |
-| item_id, items_allocated | 출발 확정 시 출고된 기념품과 수량 |
+| item_id, items_allocated | 직원이 여행 출발 처리할 때 출고된 기념품과 수량 |
 | pay_method, pay_info, pay_approval | 모의 결제 수단(card·transfer·easypay), 표시용 정보(카드는 끝 4자리만), 모의 승인번호 |
 | paid_at, refunded_at | 결제 일시, 취소 시 환불 일시 |
 
@@ -140,7 +140,7 @@ erDiagram
 | 컬럼 | 설명 |
 | --- | --- |
 | qty | +입고 / −출고 |
-| kind | `in` 입고 · `out` 출발 확정 출고 · `return` 취소 반납 · `adjust` 조정 |
+| kind | `in` 입고 · `out` 여행 출발 출고 · `return` 취소 반납 · `adjust` 조정 |
 | booking_id, staff_id, memo | 관련 예약, 처리 직원, 메모 |
 
 ### sms_log — 문자 발송 기록 (시뮬레이션)
@@ -159,9 +159,12 @@ erDiagram
 | 등급 제한 | 선택 등급 rank ≥ 테마 최소 등급, 호텔 ≥ 최소 등급의 호텔, 식사 level ≥ 최소 등급의 식사 |
 | 인원·차량 | 2인 전용 상품은 2명 고정, 차량 정원 < 인원이면 거절 |
 | 예약 마감 | 출발 3일 전까지 |
-| 출발 확정 | 예약·기준 변경 때마다 검사. `team`이면 예약 건수, `person`이면 인원 합계 ≥ confirm_min → status=confirmed, 예약자 전원 문자, 기념품 출고 |
-| 확정 후 합류 | 이미 확정된 일정에 예약하면 그 예약만 바로 출고 + 확정 문자 |
-| 취소 | 고객 본인(출발 전까지) 또는 직원. 출고된 기념품은 반납. 확정된 일정은 확정 유지 (이미 문자 발송·현지 예약 진행) |
+| 출발 확정 | 예약·기준 변경 때마다 검사. `team`이면 예약 건수, `person`이면 인원 합계 ≥ confirm_min → status=confirmed, 예약자 전원 문자 |
+| 확정 후 합류 | 이미 확정된 일정에 예약하면 결제 문자에 확정 안내 포함 |
+| 여행 출발 처리 | 직원이 출발 확정 일정을 출발 처리 → 예약 인원 × 1인당 수량만큼 기념품 출고(재고 차감, 재고가 모자라면 거절) → departures.departed_at, 고객 예약 "여행 중". 이후 예약·취소·변경 불가 |
+| 여행 완료 처리 | 출발 처리된 일정만 → departures.completed_at, 고객 예약 "여행 완료", 단골 할인 횟수에 반영 |
+| 예약 변경 | 출발 전까지 등급·호텔·식사·교통·추가 메뉴 변경. 예약 때 할인율로 다시 계산, 차액은 같은 수단으로 모의 추가 결제/부분 환불, booking_changes에 기록 + 변경 문자. 여행지·출발일·기간·인원은 취소 후 재예약 |
+| 취소 | 고객 본인(출발 전까지) 또는 직원. 출고된 기념품이 있으면 반납. 확정된 일정은 확정 유지 (이미 문자 발송·현지 예약 진행) |
 | 운영 취소 | 직원이 일정을 취소하면 예약 전부 취소 + 반납 + 취소 문자 |
 | 단골 할인 | 완료 여행(확정 + 여행 종료) 1–2회 우수 고객 5%, 3회 이상 단골 고객 10%. 예약 시점 등급으로 적용 |
 | 예약 상태 | 예약 취소 / 출발 취소 / 출발 무산(인원 미달로 출발일 경과) / 모집 중 x/y / 출발 확정 / 여행 중 / 여행 완료 |
@@ -184,6 +187,7 @@ erDiagram
 | GET | /me | 현재 회원 + 등급 `{user: {id, name, address, phone, role, tier}}` | – |
 | GET | /me/bookings | 내 예약·여행 내역 (출발일 최근 순) | 고객 |
 | POST | /bookings | `{theme, dest, date, nights, pax, style, hotel, meal, vehicle, addons[], expectedTotal, payment: {method, last4?, installment?, bank?, agree}}` 모의 결제 + 예약 → `{booking, confirmedNow, sms[]}` | 고객 |
+| PUT | /bookings/:id | `{style, hotel, meal, vehicle, addons, expectedTotal}` 예약 변경 (차액 추가 결제/환불) | 고객 |
 | POST | /bookings/:id/cancel | 예약 취소 | 고객 |
 | GET | /me/sms?unread=1 | 받은 문자 | 고객 |
 | POST | /me/sms/read | 문자 읽음 처리 | 고객 |
@@ -196,6 +200,8 @@ erDiagram
 | GET | /departures/:id | 출발 일정 상세 + 예약자 명단 |
 | POST | /departures | `{theme, dest, date, memo}` 특별 출발일 추가 |
 | POST | /departures/:id/close | `{memo}` 운영 취소 |
+| POST | /departures/:id/depart | 여행 출발 처리 (기념품 출고) |
+| POST | /departures/:id/complete | 여행 완료 처리 |
 | POST | /bookings/:id/cancel | 예약 취소 대행 |
 | GET | /themes | 상품 전체 (판매 중지 포함) + 선택지 |
 | POST | /themes | 새 테마 상품 |
@@ -223,7 +229,7 @@ erDiagram
 | 로그인·회원가입 | 비밀번호 오류 401, 단골 등급, 입력 검사, 중복 아이디 |
 | 예약 검증 | 등급 제한, 호텔 하한, 2인 전용, 차량 정원, 예약 마감 |
 | 가격 | 화면 금액 불일치 시 409 |
-| 허니문 출발 확정 | 2팀 모이면 확정 + 양쪽 예약자 문자 + 커플티 4벌 출고 |
+| 허니문 출발 확정 | 2팀 모이면 확정 + 양쪽 예약자 문자 (커플티는 출발 처리 때 출고) |
 | 일반 테마 | 2명 모집 중, 3명 확정, 샴페인 중복 제외 |
 | 취소 | 기념품 반납, 확정 유지, 타인 예약 취소 불가 |
 | 이전 여행 목록 | 최근 순, 완료 3건 |

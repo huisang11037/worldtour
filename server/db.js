@@ -24,7 +24,9 @@ function migrate(db) {
     .forEach(([c, t]) => { if (!cols.has(c)) db.exec(`ALTER TABLE bookings ADD COLUMN ${c} ${t}`); });
   const themeCols = new Set(db.prepare('PRAGMA table_info(themes)').all().map(c => c.name));
   if (!themeCols.has('image_url')) db.exec("ALTER TABLE themes ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
-  const smsCols = new Set(db.prepare('PRAGMA table_info(sms_log)').all().map(c => c.name));
+  const depCols = new Set(db.prepare('PRAGMA table_info(departures)').all().map(c => c.name));
+  ['departed_at', 'completed_at'].forEach(c => { if (!depCols.has(c)) db.exec(`ALTER TABLE departures ADD COLUMN ${c} TEXT`); });
+  const smsCols =new Set(db.prepare('PRAGMA table_info(sms_log)').all().map(c => c.name));
   [['status', "TEXT NOT NULL DEFAULT 'simulated'"], ['provider_id', 'TEXT'], ['error', 'TEXT'], ['sent_at', 'TEXT']]
     .forEach(([c, t]) => { if (!smsCols.has(c)) db.exec(`ALTER TABLE sms_log ADD COLUMN ${c} ${t}`); });
 }

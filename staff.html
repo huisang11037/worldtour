@@ -69,8 +69,8 @@ code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 5px; border:
 .badge { display: inline-block; font-size: 12px; font-weight: 500; line-height: 1.5; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
 .st-ok, .st-confirmed { color: var(--ok); background: var(--ok-weak); }
 .st-wait, .st-open { color: var(--warn); background: var(--warn-weak); }
-.st-done { color: var(--muted); }
-.st-ongoing { color: var(--accent); background: var(--accent-weak); }
+.st-done, .st-completed { color: var(--muted); }
+.st-ongoing, .st-departed { color: var(--accent); background: var(--accent-weak); }
 .st-cancel, .st-closed { color: var(--danger); }
 .st-low { color: var(--danger); background: var(--danger-weak); }
 
@@ -167,7 +167,7 @@ code { border: 0; border-radius: 6px; padding: 1px 6px; color: var(--body); }
 .btn-sm { padding: 5px 11px; font-size: 13px; min-height: 32px; border-radius: 10px; }
 .btn-danger { background: var(--bg); }
 .badge { border: 0; padding: 2px 10px; font-weight: 700; }
-.st-done { background: var(--surface); }
+.st-done, .st-completed { background: var(--surface); }
 .st-cancel, .st-closed { background: var(--danger-weak); }
 .chip { border: 0; background: var(--surface); color: var(--body); border-radius: 8px; padding: 3px 10px; font-size: 13px; }
 .tbl-wrap { border-color: var(--line); border-radius: var(--r-lg); background: var(--bg); }
@@ -390,8 +390,10 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
   const DOW = ['일', '월', '화', '수', '목', '금', '토'];
   const fmtDate = s => { if (!s) return '–'; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return `${y}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')} (${DOW[new Date(y, m - 1, d).getDay()]})`; };
   const unitL = u => (u === 'team' ? '팀' : '명');
-  const DEP_ST = { open: '모집 중', confirmed: '출발 확정', closed: '운영 취소' };
-  const depBadge = d => `<span class="badge st-${d.status}">${DEP_ST[d.status]}</span>`;
+  const DEP_ST = { open: '모집 중', confirmed: '출발 확정', departed: '여행 중', completed: '여행 완료', closed: '운영 취소' };
+  const phaseOf = d => d.phase || d.status;
+  const depBadge = d => `<span class="badge st-${phaseOf(d)}">${DEP_ST[phaseOf(d)]}</span>`;
+  const isGone = d => phaseOf(d) === 'departed' || phaseOf(d) === 'completed'; // 출발 처리 후
   const progress = d => {
     const pct = Math.min(100, Math.round((d.progress / Math.max(1, d.min)) * 100));
     return `<div class="prog"><span class="small num">${d.progress}/${d.min}${unitL(d.unit)}${d.unit === 'team' ? ` · ${d.count}명` : ''}</span>
@@ -487,7 +489,7 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
     s.urgent.forEach(d => alerts.push(`<div class="alert"><b>출발 임박 · 인원 미달</b><span>${fmtDate(d.date)} ${esc(d.themeName)} (${esc(d.destName)}) — ${d.progress}/${d.min}${unitL(d.unit)}. 추가 모집 또는 운영 취소를 결정해 주세요.</span>
       <span><button type="button" class="btn btn-sm" data-action="dep-detail" data-id="${d.id}">일정 상세</button></span></div>`));
     s.lowStock.forEach(i => alerts.push(`<div class="alert danger"><b>${i.state === 'short' ? '출고 수량 부족' : '재고 부족'} · ${esc(i.name)}</b><span>${i.state === 'short'
-      ? `현재 ${i.stock}${esc(i.unit)}인데 모집 중 예약이 확정되면 ${i.pending}${esc(i.unit)}이 출고됩니다. 입고가 필요합니다.`
+      ? `현재 ${i.stock}${esc(i.unit)}인데 출발 예정 예약에 ${i.pending}${esc(i.unit)}이 출고되어야 합니다. 입고가 필요합니다.`
       : `현재 ${i.stock}${esc(i.unit)}로 안전 재고 ${i.safety}${esc(i.unit)}보다 적습니다. 입고가 필요합니다.`}</span>
       <span><a class="btn btn-sm" href="#inventory">재고 관리로</a></span></div>`));
     return `<div class="view">
@@ -497,6 +499,7 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
         ${kpi('예정 출발 일정', s.departures.active + '건', '신청이 있는 일정')}
         ${kpi('출발 확정', s.departures.confirmed + '건', '<span class="ok-t">문자 발송 완료</span>')}
         ${kpi('모집 중', s.departures.waiting + '건', '최소 인원 미달')}
+        ${kpi('여행 중', (s.departures.departed || 0) + '건', '출발 처리 완료')}
         ${kpi('예약 인원', s.departures.pax + '명', `최근 7일 신규 예약 ${s.newBookings7d}건`)}
         ${kpi('예정 매출', won(s.departures.revenue), `회원 ${s.customers}명`)}
       </div>
@@ -518,7 +521,7 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
       <td>${progress(d)}</td>
       <td>${depBadge(d)}${d.confirmedAt ? `<span class="sub">${esc(d.confirmedAt.slice(0, 16))}</span>` : ''}</td>
       <td class="r num">${won(d.revenue)}</td>
-      <td>${d.item ? `${esc(d.item.name)}<span class="sub num">${d.item.need}${esc(d.item.unit)}${d.status === 'confirmed' ? ' 출고' : ' 예정'}</span>` : '<span class="muted">–</span>'}</td>
+      <td>${d.item ? `${esc(d.item.name)}<span class="sub num">${d.item.need}${esc(d.item.unit)}${isGone(d) ? ' 출고 완료' : ' 출고 예정'}</span>` : '<span class="muted">–</span>'}</td>
       <td><button type="button" class="btn btn-sm" data-action="dep-detail" data-id="${d.id}">상세 · 예약자</button></td>
     </tr>`).join('') : '<tr><td colspan="7" class="empty">조건에 맞는 출발 일정이 없습니다.</td></tr>';
     return `<div class="tbl-wrap"><table class="tbl" style="min-width:900px">
@@ -542,13 +545,13 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
         <button type="button" class="btn btn-primary" data-action="new-departure">출발일 추가</button></div>
       <div class="box filters" id="depFilters">
         <label class="fld"><span>기간</span>${sel('scope', [['upcoming', '예정 일정'], ['past', '지난 일정'], ['all', '전체']], f.scope)}</label>
-        <label class="fld"><span>상태</span>${sel('status', [['', '전체 상태'], ['open', '모집 중'], ['confirmed', '출발 확정'], ['closed', '운영 취소']], f.status)}</label>
+        <label class="fld"><span>상태</span>${sel('status', [['', '전체 상태'], ['open', '모집 중'], ['confirmed', '출발 확정'], ['departed', '여행 중'], ['completed', '여행 완료'], ['closed', '운영 취소']], f.status)}</label>
         <label class="fld"><span>상품</span>${sel('theme', [['', '전체 상품']].concat(cat.themes.map(t => [t.id, t.name])), f.theme)}</label>
         <label class="check"><input type="checkbox" name="booked" data-filter${f.booked ? ' checked' : ''}> 신청이 있는 일정만</label>
         <span class="small muted" style="margin-left:auto">${list.length}건</span>
       </div>
       ${depTable(list)}
-      <p class="note">출발 확정 규칙: 허니문 낭만 투어는 신청 2팀 이상, 그 외 테마는 신청 인원 3명 이상이면 자동으로 확정되고 예약자 전원에게 문자가 발송되며 기념품이 출고됩니다. 확정 이후 일부 취소가 생겨도 확정 상태는 유지됩니다. 기준은 '여행 상품 기획'에서 바꿀 수 있습니다.</p>
+      <p class="note">출발 확정 규칙: 허니문 낭만 투어는 신청 2팀 이상, 그 외 테마는 신청 인원 3명 이상이면 자동으로 확정되고 예약자 전원에게 문자가 발송됩니다. 여행 당일 '여행 출발 처리'를 하면 예약 인원만큼 기념품이 출고(재고 차감)되고, 돌아오면 '여행 완료 처리'로 여행을 마칩니다. 확정 이후 일부 취소가 생겨도 확정 상태는 유지됩니다. 기준은 '여행 상품 기획'에서 바꿀 수 있습니다.</p>
     </div>`;
   }
 
@@ -562,20 +565,23 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
       <td>${esc(b.labels.style)}<span class="sub">${esc(b.labels.hotel)} · ${esc(b.labels.meal)} · ${esc(b.labels.vehicle)}${b.labels.addons.length ? ' · +' + esc(b.labels.addons.join(', ')) : ''}</span></td>
       <td class="r num">${won(b.total)}${b.discount ? `<span class="sub">할인 ${Math.round(b.discountRate * 100)}%</span>` : ''}${b.payment ? `<span class="sub">${esc(b.payment.status)} · ${esc(b.payment.info)}</span><span class="sub">${esc(b.payment.approval)}</span>` : ''}</td>
       <td><span class="badge st-${b.status.key}">${esc(b.status.label)}</span>${b.itemsAllocated ? `<span class="sub">기념품 ${b.itemsAllocated} 출고</span>` : ''}</td>
-      <td>${!b.cancelled && d.status !== 'closed' && d.date > todayKey() ? `<button type="button" class="btn btn-sm btn-danger" data-action="cancel-booking" data-id="${esc(b.id)}" data-dep="${d.id}">취소</button>` : ''}</td>
+      <td>${!b.cancelled && d.status !== 'closed' && !isGone(d) && d.date > todayKey() ? `<button type="button" class="btn btn-sm btn-danger" data-action="cancel-booking" data-id="${esc(b.id)}" data-dep="${d.id}">취소</button>` : ''}</td>
     </tr>`).join('') : '<tr><td colspan="7" class="empty">아직 예약이 없습니다.</td></tr>';
-    const canClose = d.status !== 'closed' && d.date > todayKey();
+    const canClose = d.status !== 'closed' && !isGone(d) && d.date > todayKey();
+    const booked = d.bookings.filter(b => !b.cancelled).length;
     openModal(`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dep-title">
       <div class="dialog-head">
         <div><div class="label">Departure #${d.id}</div><h2 id="dep-title">${esc(d.themeName)} · ${esc(d.destName)} · ${fmtDate(d.date)}</h2></div>
         <button type="button" class="x" data-action="close-modal" aria-label="닫기">×</button>
       </div>
-      <div class="row">${depBadge(d)} ${progress(d)} <span class="small muted">예약 금액 ${won(d.revenue)}${d.item ? ` · ${esc(d.item.name)} ${d.item.need}${esc(d.item.unit)}` : ''}${d.memo ? ` · 메모: ${esc(d.memo)}` : ''}</span></div>
+      <div class="row">${depBadge(d)} ${progress(d)} <span class="small muted">예약 금액 ${won(d.revenue)}${d.item ? ` · ${esc(d.item.name)} ${d.item.need}${esc(d.item.unit)} ${isGone(d) ? '출고 완료' : '출고 예정'}` : ''}${d.departedAt ? ` · 출발 처리 ${esc(d.departedAt.slice(0, 16))}` : ''}${d.completedAt ? ` · 완료 처리 ${esc(d.completedAt.slice(0, 16))}` : ''}${d.memo ? ` · 메모: ${esc(d.memo)}` : ''}</span></div>
       <div class="tbl-wrap"><table class="tbl" style="min-width:860px">
         <thead><tr><th>예약번호</th><th>고객</th><th>인원 · 기간</th><th>구성</th><th class="r">금액</th><th>상태</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       <div class="dialog-foot">
         ${canClose ? `<button type="button" class="btn btn-danger" data-action="ask-close-dep" data-id="${d.id}">출발 일정 운영 취소</button>` : ''}
+        ${phaseOf(d) === 'confirmed' && booked ? `<button type="button" class="btn btn-primary" data-action="ask-depart" data-id="${d.id}">여행 출발 처리</button>` : ''}
+        ${phaseOf(d) === 'departed' ? `<button type="button" class="btn btn-primary" data-action="ask-complete" data-id="${d.id}">여행 완료 처리</button>` : ''}
         <button type="button" class="btn btn-primary" data-action="close-modal">닫기</button>
       </div>
     </div>`);
@@ -763,7 +769,7 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
         <div class="tbl-wrap"><table class="tbl" style="min-width:820px">
           <thead><tr><th>물품</th><th class="r">현재 재고</th><th class="r">출고 예정</th><th class="r">안전 재고</th><th>상태</th><th></th></tr></thead>
           <tbody>${itemRows || '<tr><td colspan="6" class="empty">등록된 물품이 없습니다.</td></tr>'}</tbody></table></div>
-        <p class="note">기념품은 출발이 확정되는 순간 예약 인원만큼 자동 출고되고, 예약이 취소되면 반납됩니다. '출고 예정'은 모집 중인 예약이 모두 확정될 때 필요한 수량입니다. 현재 재고가 안전 재고보다 적거나 출고 예정 수량보다 적으면 입고 알림이 표시됩니다.</p>
+        <p class="note">기념품은 '출발 일정 · 예약'에서 여행 출발 처리를 할 때 예약 인원만큼 출고(재고 차감)됩니다. '출고 예정'은 아직 출발하지 않은 예약(모집 중 · 출발 확정)에 나갈 수량입니다. 현재 재고가 안전 재고보다 적거나 출고 예정 수량보다 적으면 입고 알림이 표시됩니다.</p>
       </section>
       <section>
         <div class="sec-head"><h2>입출고 이력</h2><span class="label">최근 200건</span></div>
@@ -957,6 +963,45 @@ html[data-palette="voyage"] .kpi:nth-child(4), html[data-palette="dusk"] .kpi:nt
             <button type="button" class="btn btn-danger" data-action="do-close-dep" data-id="${id}">운영 취소</button></div>
         </div>`);
         break;
+      case 'ask-depart': {
+        const d = await attempt(() => api('GET', `/staff/departures/${id}`));
+        if (!d) break;
+        const items = d.item ? await attempt(() => api('GET', '/staff/items')) : [];
+        const it = d.item && items ? items.find(i => i.name === d.item.name) : null;
+        const short = it && it.stock < d.item.need;
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="dp-title">
+          <h2 id="dp-title">여행 출발 처리</h2>
+          <p>${esc(d.themeName)} · ${esc(d.destName)} · ${fmtDate(d.date)}<br><span class="small muted">예약 ${d.bookings.filter(b => !b.cancelled).length}건 · ${d.count}명</span></p>
+          ${d.item ? `<div class="alert${short ? ' danger' : ''}"><b>기념품 출고 · ${esc(d.item.name)} ${d.item.need}${esc(d.item.unit)}</b><span>현재 재고 ${it ? it.stock : '–'}${esc(d.item.unit)} → 출고 후 ${it ? it.stock - d.item.need : '–'}${esc(d.item.unit)}${short ? ' · 재고가 부족합니다. 먼저 입고해 주세요.' : ''}</span></div>` : ''}
+          ${d.date > todayKey() ? `<p class="small muted">출발일(${fmtDate(d.date)}) 전입니다. 실제로 출발하는 날 처리하는 것이 원칙입니다.</p>` : ''}
+          <p class="small muted">처리하면 고객 예약은 '여행 중'이 되고, 이 일정은 더 이상 예약·취소할 수 없습니다.</p>
+          <div class="dialog-foot"><button type="button" class="btn" data-action="dep-detail" data-id="${id}">돌아가기</button>
+            ${short ? '<a class="btn btn-primary" href="#inventory" data-action="close-modal">재고 관리로</a>' : `<button type="button" class="btn btn-primary" data-action="do-depart" data-id="${id}" data-autofocus>출발 처리</button>`}</div>
+        </div>`);
+        break;
+      }
+      case 'do-depart': {
+        a.disabled = true;
+        const r = await attempt(() => api('POST', `/staff/departures/${id}/depart`));
+        if (r) { toast(`출발 처리했습니다. 예약 ${r.bookings}건 여행 중${r.item ? ` · ${r.item.name} ${r.out}${r.item.unit} 출고` : ''}`); showDeparture(Number(id)); render(); }
+        else a.disabled = false;
+        break;
+      }
+      case 'ask-complete':
+        openModal(`<div class="dialog sm" role="dialog" aria-modal="true" aria-labelledby="cp-title">
+          <h2 id="cp-title">여행 완료 처리</h2>
+          <p class="small muted">이 일정의 고객 예약이 '여행 완료'가 되고, 고객의 완료된 여행 횟수(단골 할인)에 반영됩니다.</p>
+          <div class="dialog-foot"><button type="button" class="btn" data-action="dep-detail" data-id="${id}">돌아가기</button>
+            <button type="button" class="btn btn-primary" data-action="do-complete" data-id="${id}" data-autofocus>완료 처리</button></div>
+        </div>`);
+        break;
+      case 'do-complete': {
+        a.disabled = true;
+        const r = await attempt(() => api('POST', `/staff/departures/${id}/complete`));
+        if (r) { toast(`여행 완료 처리했습니다. 예약 ${r.bookings}건 여행 완료`); showDeparture(Number(id)); render(); }
+        else a.disabled = false;
+        break;
+      }
       case 'do-close-dep': {
         const r = await attempt(() => api('POST', `/staff/departures/${id}/close`, { memo: $('#close-memo').value }));
         if (r) { closeModal(); toast(`출발 일정을 취소했습니다. 예약 ${r.cancelled}건 취소 · 문자 발송`); render(); }

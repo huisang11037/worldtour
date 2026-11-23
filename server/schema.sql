@@ -132,6 +132,8 @@ CREATE TABLE IF NOT EXISTS departures (
   depart_date    TEXT    NOT NULL,
   status         TEXT    NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'closed')),
   confirmed_at   TEXT,
+  departed_at    TEXT,                                          -- 직원 출발 처리 (기념품 출고)
+  completed_at   TEXT,                                          -- 직원 여행 완료 처리
   memo           TEXT    NOT NULL DEFAULT '',
   created_at     TEXT    NOT NULL,
   UNIQUE (destination_id, depart_date)
@@ -158,7 +160,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   pay_approval   TEXT,                                          -- 모의 승인번호
   paid_at        TEXT,
   refunded_at    TEXT,
-  item_id       INTEGER REFERENCES items(id),                  -- 출고된 기념품 (출발 확정 시 배정)
+  item_id       INTEGER REFERENCES items(id),                  -- 출고된 기념품 (출발 처리 시 출고)
   items_allocated INTEGER NOT NULL DEFAULT 0,                   -- 기념품 출고 수량
   created_at     TEXT    NOT NULL,
   cancelled_at   TEXT
@@ -169,6 +171,18 @@ CREATE TABLE IF NOT EXISTS booking_addons (
   booking_id  TEXT    NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   addon_code  TEXT    NOT NULL REFERENCES addons(code),
   PRIMARY KEY (booking_id, addon_code)
+);
+
+-- 예약 변경 이력 (옵션 변경 → 차액 추가 결제 또는 부분 환불)
+CREATE TABLE IF NOT EXISTS booking_changes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id  TEXT    NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  summary     TEXT    NOT NULL,                                 -- 바뀐 항목 (예: 등급 프리미엄 → 그랜드)
+  before_total INTEGER NOT NULL,
+  after_total INTEGER NOT NULL,
+  diff        INTEGER NOT NULL,                                 -- +추가 결제 / -부분 환불
+  approval    TEXT,                                             -- 차액 모의 승인번호
+  created_at  TEXT    NOT NULL
 );
 
 -- 재고 입출고 이력

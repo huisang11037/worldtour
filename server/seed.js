@@ -6,7 +6,7 @@ const { hashPassword } = require('./auth');
 const { toKey, addDays, fromKey, today, nowStamp, upcomingSaturdays, pastSaturday } = require('./util');
 const rules = require('./rules');
 
-const TABLES = ['sms_log', 'stock_moves', 'booking_addons', 'bookings', 'departures', 'destinations', 'theme_services',
+const TABLES = ['sms_log', 'stock_moves', 'booking_changes', 'booking_addons', 'bookings', 'departures', 'destinations', 'theme_services',
   'themes', 'items', 'tour_styles', 'addons', 'vehicles', 'meals', 'hotels', 'sessions', 'users'];
 
 function seed(db) {
@@ -39,8 +39,8 @@ function seed(db) {
     // 창고 물품 (기념품)
     const it = db.prepare('INSERT INTO items (code, name, unit, stock, safety_stock, created_at) VALUES (?, ?, ?, 0, ?, ?)');
     const itemIds = {};
-    [['couple-tee', '커플 기념티', '벌', 40, 10], ['ginseng', '건강 인삼 세트', '세트', 30, 10],
-     ['golf-ball', '프리미엄 골프공 (12구)', '박스', 40, 10], ['scarf', '아웃도어 스카프', '개', 16, 10]]
+    [['couple-tee', '커플 기념티', '벌', 10, 10], ['ginseng', '건강 인삼 세트', '세트', 12, 10],
+     ['golf-ball', '프리미엄 골프공 (12구)', '박스', 12, 10], ['scarf', '아웃도어 스카프', '개', 14, 10]]
       .forEach(([code, name, unit, stock, safety]) => {
         itemIds[code] = Number(it.run(code, name, unit, safety, stamp).lastInsertRowid);
         rules.moveStock(db, itemIds[code], stock, 'in', { memo: '초기 재고' });
@@ -96,8 +96,10 @@ function seed(db) {
     const cat = rules.loadCatalog(db);
     const pastDep = (theme, dest, date) => {
       const destId = cat.themes[theme].dests.find(d => d.id === dest).dbId;
-      db.prepare(`INSERT OR IGNORE INTO departures (destination_id, depart_date, status, confirmed_at, created_at)
-        VALUES (?, ?, 'confirmed', ?, ?)`).run(destId, date, date + ' 09:00:00', date + ' 09:00:00');
+      // 지난 여행: 출발 확정 → 출발 처리(기념품 출고) → 여행 완료 처리까지 끝난 일정
+      const end = toKey(addDays(fromKey(date), 5)) + ' 18:00:00';
+      db.prepare(`INSERT OR IGNORE INTO departures (destination_id, depart_date, status, confirmed_at, departed_at, completed_at, created_at)
+        VALUES (?, ?, 'confirmed', ?, ?, ?, ?)`).run(destId, date, date + ' 09:00:00', date + ' 07:00:00', end, date + ' 09:00:00');
     };
     const past = [
       ['demo', { theme: 'trekking', dest: 'seorak', date: pastSaturday(390), nights: 2, pax: 5, style: 'classic', hotel: 3, meal: 'fine', vehicle: 'van', addons: ['coffee'] }, 0, '01'],
@@ -107,16 +109,22 @@ function seed(db) {
     ];
     past.forEach(([uid, b, rate, no]) => {
       pastDep(b.theme, b.dest, b.date);
-      rules.createBooking(db, users[uid], b, {
+      const r = rules.createBooking(db, users[uid], b, {
         allowPast: true, silent: true, rate, payment: { method: 'card', info: '신용·체크카드 ****1234 · 일시불' },
         id: `MW-${b.date.replace(/-/g, '').slice(2)}-0${no}`,
         createdAt: toKey(addDays(fromKey(b.date), -21)) + ' 14:00:00'
       });
+      rules.allocateItems(db, cat.themes[b.theme], db.prepare('SELECT * FROM bookings WHERE id = ?').get(r.booking.id));
     });
 
     // 앞으로의 출발 일정 + 다른 고객들의 신청 (일부는 확정, 일부는 모집 중)
     rules.ensureDepartures(db, true);
     const sat = upcomingSaturdays(8);
+    // 크리스마스 이브 특별 출발 (허니문): 정기 토요일 출발 외에 직원이 추가하는 특별 출발 일정의 예
+    let eve = new Date(today().getFullYear(), 11, 24);
+    if (eve < addDays(today(), rules.LEAD_DAYS)) eve = new Date(today().getFullYear() + 1, 11, 24);
+    cat.themes.honeymoon.dests.forEach(d => db.prepare(`INSERT OR IGNORE INTO departures (destination_id, depart_date, memo, created_at)
+      VALUES (?, ?, '크리스마스 이브 특별 출발', ?)`).run(d.dbId, toKey(eve), stamp));
     const g = (theme, pax, style = 'grand') => {
       const st = cat.styles[style];
       return { theme, pax, style, hotel: st.hotel, meal: st.meal, vehicle: cat.themes[theme].vehicle, nights: 3, addons: [] };

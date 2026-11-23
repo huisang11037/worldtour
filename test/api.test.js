@@ -99,7 +99,7 @@ test('가격: 서버 계산과 화면 금액이 다르면 409', async () => {
   assert.equal(r.body.total, q.body.total);
 });
 
-test('허니문: 2팀이 모이면 출발 확정 + 문자 + 커플티 출고', async () => {
+test('허니문: 2팀이 모이면 출발 확정 + 문자 (커플티는 출발 처리 때 출고)', async () => {
   const before = stockOf('커플');
   const c = await login('demo');
   const deps = await c('GET', `/departures?theme=honeymoon&dest=jeju`);
@@ -115,7 +115,7 @@ test('허니문: 2팀이 모이면 출발 확정 + 문자 + 커플티 출고', a
   assert.match(r.body.sms[0].message, /결제가 완료되었습니다/);
   assert.match(r.body.sms[0].message, /허니문 낭만 투어 \(제주\)/);
   assert.match(r.body.sms[0].message, /출발이 확정되었습니다/);
-  assert.equal(stockOf('커플'), before - 4); // 기존 1팀 2벌 + 내 2벌
+  assert.equal(stockOf('커플'), before); // 확정만으로는 재고가 줄지 않는다
   // 함께 확정된 다른 고객(이하늘)도 문자를 받는다
   const sky = await login('sky');
   const inbox = await sky('GET', '/me/sms?unread=1');
@@ -134,17 +134,17 @@ test('일반 테마: 인원 3명 미만이면 모집 중, 3명 이상이면 확�
   r = await c('POST', '/bookings', draft('trekking', { pax: 1, style: 'classic', hotel: 3, meal: 'fine', addons: ['champagne', 'coffee'] }));
   assert.equal(r.body.confirmedNow, true);
   assert.deepEqual(r.body.booking.addons, ['coffee']); // 샴페인 포함 식사 → 샴페인 추가 제외
-  assert.equal(stockOf('아웃도어'), before - 3);
+  assert.equal(stockOf('아웃도어'), before);
 });
 
-test('예약 취소: 기념품 반납, 확정 일정은 확정 유지', async () => {
+test('예약 취소: 출발 전이라 반납할 기념품 없음, 확정 일정은 확정 유지', async () => {
   const c = await login('demo');
   const list = (await c('GET', '/me/bookings')).body;
   const b = list.find(x => x.theme === 'trekking' && x.status.key === 'ok');
   const before = stockOf('아웃도어');
   const r = await c('POST', `/bookings/${b.id}/cancel`);
-  assert.equal(r.body.returned, 1);
-  assert.equal(stockOf('아웃도어'), before + 1);
+  assert.equal(r.body.returned, 0);
+  assert.equal(stockOf('아웃도어'), before);
   const dep = (await c('GET', '/departures?theme=trekking&dest=seorak')).body.find(d => d.date === SAT[0]);
   assert.equal(dep.status, 'confirmed');
   assert.equal((await c('POST', `/bookings/${b.id}/cancel`)).status, 400);
@@ -206,13 +206,13 @@ test('직원: 상품 기획 - 새 여행지·출발일 추가', async () => {
   assert.ok(deps.some(d => d.date === '2026-12-24'));
 });
 
-test('직원: 출발 일정 운영 취소 → 예약 취소 + 문자 + 기념품 반납', async () => {
+test('직원: 출발 일정 운영 취소 → 예약 취소 + 문자', async () => {
   const s = await login('staff');
   const dep = (await s('GET', '/staff/departures?theme=honeymoon&status=confirmed')).body.find(d => d.dest === 'maldives');
   const before = stockOf('커플');
   const r = await s('POST', `/staff/departures/${dep.id}/close`, { memo: '현지 기상 악화' });
   assert.equal(r.body.cancelled, 2);
-  assert.equal(stockOf('커플'), before + 4);
+  assert.equal(stockOf('커플'), before);
   const sms = (await s('GET', '/staff/sms')).body.filter(x => x.kind === 'closed');
   assert.equal(sms.length, 2);
   assert.match(sms[0].message, /현지 기상 악화/);
@@ -335,4 +335,80 @@ test('간편결제: 결제사 선택 필수, 결제 정보에 결제사 이름 �
   r = await c('POST', '/bookings', draft('golf', { dest: 'chiangmai', pax: 1, payment: { method: 'easypay', provider: '카카오페이', agree: true } }));
   assert.equal(r.status, 201);
   assert.equal(r.body.booking.payment.info, '간편결제 (카카오페이)');
+});
+
+test('크리스마스 이브 특별 출발: 허니문 출발일 목록에 12월 24일', async () => {
+  const deps = (await client()('GET', '/departures?theme=honeymoon&dest=jeju')).body;
+  assert.ok(deps.some(d => d.date === '2026-12-24'));
+});
+
+test('예약 변경: 등급·추가 메뉴 변경, 차액 추가 결제·부분 환불, 변경 문자', async () => {
+  const c = await login('sea');
+  const r = await c('POST', '/bookings', draft('trekking', { dest: 'jiri', date: SAT[2], pax: 3, style: 'classic', hotel: 3, meal: 'lunchbox' }));
+  assert.equal(r.status, 201);
+  const id = r.body.booking.id, cat = rules.loadCatalog(db);
+  const up = { style: 'grand', hotel: 4, meal: 'local', vehicle: 'van', addons: ['coffee', 'champagne'] };
+  const expect = rules.calc(cat, Object.assign({}, r.body.booking, up), r.body.booking.discountRate).total;
+  // 화면 금액과 다르면 409, 다른 고객은 404, 바뀐 것이 없으면 400
+  assert.equal((await c('PUT', `/bookings/${id}`, Object.assign({ expectedTotal: expect + 100 }, up))).status, 409);
+  assert.equal((await (await login('joy'))('PUT', `/bookings/${id}`, up)).status, 404);
+  assert.equal((await c('PUT', `/bookings/${id}`, {})).status, 400);
+  const u = await c('PUT', `/bookings/${id}`, Object.assign({ expectedTotal: expect }, up));
+  assert.equal(u.status, 200);
+  assert.equal(u.body.booking.total, expect);
+  assert.equal(u.body.booking.style, 'grand');
+  assert.deepEqual(u.body.booking.addons.sort(), ['champagne', 'coffee']);
+  assert.ok(u.body.change.diff > 0 && /^[0-9]{8}$/.test(u.body.change.approval));
+  assert.match(u.body.change.summary, /등급 클래식 → 그랜드/);
+  assert.match(u.body.sms[0].message, /예약이 변경되었습니다/);
+  assert.match(u.body.sms[0].message, /추가 결제/);
+  // 다시 낮추면 부분 환불, 변경 이력 2건
+  const down = await c('PUT', `/bookings/${id}`, { style: 'classic', hotel: 3, meal: 'lunchbox', addons: [] });
+  assert.ok(down.body.change.diff < 0);
+  assert.match(down.body.sms[0].message, /부분 환불/);
+  assert.equal(down.body.booking.changes.length, 2);
+  // 출발일·인원은 이 기능으로 바뀌지 않는다
+  assert.equal(down.body.booking.pax, 3);
+  assert.equal(down.body.booking.date, SAT[2]);
+});
+
+test('직원: 여행 출발 처리 → 기념품 출고(재고 차감), 완료 처리 → 여행 완료', async () => {
+  const s = await login('staff');
+  const golf = (await s('GET', '/staff/departures?theme=golf&status=confirmed')).body.find(d => d.dest === 'jeju' && d.date === SAT[0]);
+  // 완료는 출발 처리 뒤에만, 모집 중 일정은 출발 처리 불가
+  assert.equal((await s('POST', `/staff/departures/${golf.id}/complete`)).status, 400);
+  const open = (await s('GET', '/staff/departures?theme=golf&status=open&booked=1')).body[0];
+  assert.equal((await s('POST', `/staff/departures/${open.id}/depart`)).status, 400);
+  const before = stockOf('프리미엄 골프공');
+  const r = await s('POST', `/staff/departures/${golf.id}/depart`);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.out, golf.count);
+  assert.equal(stockOf('프리미엄 골프공'), before - golf.count);
+  assert.equal((await s('POST', `/staff/departures/${golf.id}/depart`)).status, 400);
+  // 고객: 여행 중, 출발일 목록에서 빠지고 취소·변경 불가
+  const f = await login('forest');
+  const b = (await f('GET', '/me/bookings')).body.find(x => x.departureId === golf.id);
+  assert.equal(b.status.key, 'ongoing');
+  assert.ok(!(await f('GET', '/departures?theme=golf&dest=jeju')).body.some(d => d.id === golf.id));
+  assert.equal((await f('POST', `/bookings/${b.id}/cancel`)).status, 400);
+  assert.equal((await f('PUT', `/bookings/${b.id}`, { addons: ['coffee'] })).status, 400);
+  const tierBefore = (await f('GET', '/me')).body.user.tier.n;
+  // 완료 처리 → 여행 완료, 단골 할인 횟수 +1
+  assert.equal((await s('POST', `/staff/departures/${golf.id}/complete`)).status, 200);
+  assert.equal((await f('GET', '/me/bookings')).body.find(x => x.id === b.id).status.key, 'done');
+  assert.equal((await f('GET', '/me')).body.user.tier.n, tierBefore + 1);
+  assert.ok((await s('GET', '/staff/departures?status=completed&scope=all')).body.some(d => d.id === golf.id));
+});
+
+test('직원: 출발 처리 때 기념품 재고가 모자라면 거절, 입고 후 처리', async () => {
+  const s = await login('staff');
+  const dep = (await s('GET', '/staff/departures?theme=parents&status=confirmed')).body.find(d => d.dest === 'oita');
+  const gin = (await s('GET', '/staff/items')).body.find(i => i.name.startsWith('건강 인삼'));
+  await s('POST', `/staff/items/${gin.id}/moves`, { kind: 'adjust', qty: -(gin.stock - 1), memo: '테스트' });
+  const r = await s('POST', `/staff/departures/${dep.id}/depart`);
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /재고가 부족합니다/);
+  await s('POST', `/staff/items/${gin.id}/moves`, { kind: 'in', qty: 20, memo: '입고' });
+  assert.equal((await s('POST', `/staff/departures/${dep.id}/depart`)).status, 200);
+  assert.equal(stockOf('건강 인삼'), 21 - dep.count);
 });

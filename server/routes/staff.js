@@ -8,7 +8,7 @@ const { HttpError, bad, nowStamp, todayKey, toKey, addDays, today, isDateKey } =
 const { seed } = require('../seed');
 const sms = require('../sms');
 
-// 재고 상태: short = 확정 대기 예약에 나갈 수량보다 적음, low = 안전 재고 미만, ok = 정상
+// 재고 상태: short = 출발 예정 예약에 나갈 수량보다 적음, low = 안전 재고 미만, ok = 정상
 const stockState = (stock, safety, pending) => (stock < pending ? 'short' : stock < safety ? 'low' : 'ok');
 
 const int = (v, name, { min = 0, max = 1e9 } = {}) => {
@@ -40,9 +40,11 @@ module.exports = function staffRoutes(db) {
     return {
       id: row.id, theme: row.theme_code, themeName: t ? t.name : row.theme_code, dest: row.dest_code, destName: row.dest_name, region: row.region,
       date: row.depart_date, status: row.status, confirmedAt: row.confirmed_at, memo: row.memo,
+      departedAt: row.departed_at, completedAt: row.completed_at,
+      phase: row.completed_at ? 'completed' : row.departed_at ? 'departed' : row.status,
       count: s.count, teams: s.teams, progress: t ? rules.progressOf(t, s) : s.count, min: t ? t.confirmMin : 0, unit: t ? t.confirmUnit : 'person',
       revenue: money.revenue,
-      item: t && t.item ? { name: t.item.name, unit: t.item.unit, need: s.count * t.item.perPerson } : null
+      item: t && t.item ? { name: t.item.name, unit: t.item.unit, need: s.count * t.item.perPerson, out: row.departed_at ? s.count * t.item.perPerson : 0 } : null
     };
   };
   const DEP_SELECT = `SELECT dp.*, d.code AS dest_code, d.name AS dest_name, d.region, d.theme_code
@@ -53,19 +55,21 @@ module.exports = function staffRoutes(db) {
     rules.ensureDepartures(db);
     const cat = rules.loadCatalog(db, { includeInactive: true });
     const tk = todayKey(), week = toKey(addDays(today(), 7));
-    const active = db.prepare(`${DEP_SELECT} WHERE dp.depart_date >= ? AND dp.status != 'closed'
+    const active = db.prepare(`${DEP_SELECT} WHERE dp.depart_date >= ? AND dp.status != 'closed' AND dp.completed_at IS NULL
       AND EXISTS (SELECT 1 FROM bookings b WHERE b.departure_id = dp.id AND b.status = 'booked') ORDER BY dp.depart_date`).all(tk)
       .map(row => depView(cat, row));
     const items = db.prepare('SELECT * FROM items ORDER BY id').all();
     const reserved = db.prepare(`SELECT t.item_id, COALESCE(SUM(b.pax * t.item_per_person), 0) AS qty
       FROM bookings b JOIN departures dp ON dp.id = b.departure_id JOIN destinations d ON d.id = dp.destination_id JOIN themes t ON t.code = d.theme_code
-      WHERE b.status = 'booked' AND dp.status = 'open' AND dp.depart_date >= ? AND t.item_id IS NOT NULL GROUP BY t.item_id`).all(tk);
+      WHERE b.status = 'booked' AND dp.status IN ('open', 'confirmed') AND dp.departed_at IS NULL AND dp.depart_date >= ?
+      AND t.item_id IS NOT NULL GROUP BY t.item_id`).all(tk);
     const pending = Object.fromEntries(reserved.map(x => [x.item_id, x.qty]));
     res.json({
       today: tk,
       departures: {
         active: active.length,
-        confirmed: active.filter(d => d.status === 'confirmed').length,
+        confirmed: active.filter(d => d.phase === 'confirmed').length,
+        departed: active.filter(d => d.phase === 'departed').length,
         waiting: active.filter(d => d.status === 'open').length,
         pax: active.reduce((s, d) => s + d.count, 0),
         revenue: active.reduce((s, d) => s + d.revenue, 0)
@@ -89,7 +93,11 @@ module.exports = function staffRoutes(db) {
     const scope = req.query.scope || 'upcoming';
     if (scope === 'upcoming') { where.push('dp.depart_date >= ?'); args.push(todayKey()); }
     if (scope === 'past') { where.push('dp.depart_date < ?'); args.push(todayKey()); }
-    if (['open', 'confirmed', 'closed'].includes(req.query.status)) { where.push('dp.status = ?'); args.push(req.query.status); }
+    const st = req.query.status;
+    if (st === 'open' || st === 'closed') { where.push('dp.status = ?'); args.push(st); }
+    if (st === 'confirmed') where.push("dp.status = 'confirmed' AND dp.departed_at IS NULL");
+    if (st === 'departed') where.push('dp.departed_at IS NOT NULL AND dp.completed_at IS NULL');
+    if (st === 'completed') where.push('dp.completed_at IS NOT NULL');
     if (req.query.theme) { where.push('d.theme_code = ?'); args.push(String(req.query.theme)); }
     if (req.query.booked === '1') where.push("EXISTS (SELECT 1 FROM bookings b WHERE b.departure_id = dp.id AND b.status = 'booked')");
     const order = scope === 'past' ? 'DESC' : 'ASC';
@@ -137,6 +145,14 @@ module.exports = function staffRoutes(db) {
     const cat = rules.loadCatalog(db, { includeInactive: true });
     res.json(rules.closeDeparture(db, cat, Number(req.params.id), text((req.body || {}).memo, '취소 사유', { required: false })));
   });
+
+  // 여행 출발 처리: 기념품 출고(재고 차감) → 고객 예약 '여행 중'
+  r.post('/departures/:id/depart', (req, res) => {
+    const cat = rules.loadCatalog(db, { includeInactive: true });
+    res.json(rules.departDeparture(db, cat, Number(req.params.id), req.user.id));
+  });
+  // 여행 완료 처리 → 고객 예약 '여행 완료' (단골 할인 횟수에 반영)
+  r.post('/departures/:id/complete', (req, res) => res.json(rules.completeDeparture(db, Number(req.params.id))));
 
   // 개별 예약 취소 (고객 요청 대행)
   r.post('/bookings/:id/cancel', (req, res) => res.json(rules.cancelBooking(db, req.user, req.params.id)));
@@ -288,11 +304,11 @@ module.exports = function staffRoutes(db) {
     const themes = db.prepare('SELECT code, name, item_id FROM themes').all();
     const pending = db.prepare(`SELECT COALESCE(SUM(b.pax * t.item_per_person), 0) AS qty FROM bookings b
       JOIN departures dp ON dp.id = b.departure_id JOIN destinations d ON d.id = dp.destination_id JOIN themes t ON t.code = d.theme_code
-      WHERE t.item_id = ? AND b.status = 'booked' AND dp.status = 'open' AND dp.depart_date >= ?`);
+      WHERE t.item_id = ? AND b.status = 'booked' AND dp.status IN ('open', 'confirmed') AND dp.departed_at IS NULL AND dp.depart_date >= ?`);
     res.json(items.map(i => ({
       id: i.id, code: i.code, name: i.name, unit: i.unit, stock: i.stock, safety: i.safety_stock, createdAt: i.created_at,
       themes: themes.filter(t => t.item_id === i.id).map(t => t.name),
-      pending: pending.get(i.id, tk).qty,  // 모집 중 예약이 확정되면 출고될 예정 수량
+      pending: pending.get(i.id, tk).qty,  // 출발 처리 때 출고될 예정 수량 (모집 중 + 출발 확정)
       state: stockState(i.stock, i.safety_stock, pending.get(i.id, tk).qty)
     })));
   });
